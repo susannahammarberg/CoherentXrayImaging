@@ -10,22 +10,25 @@ from numpy import fft
 # Shifting property. fft of a shifted function. se s.9 avhandling Giewek...
 from scipy import misc
 import matplotlib.pyplot as plt
-import math
+import math    #use np.log10 for np arrays
+import matplotlib.animation as animation
 
 
 #image = misc.imread('gubbe.gif')
 #image = image[:,:,0]
 #image = misc.imread('greens.jpg',flatten=True) #flatten gives a single gray scale layer
-image = misc.imread('fruit.jpg',flatten=True) #flatten gives a single gray scale layer
-#image = misc.imread('ko.bmp') #flatten gives a single gray scale layer
+#image = misc.imread('fruit.jpg',flatten=True) #flatten gives a single gray scale layer
+image = misc.imread('ko400400.jpg',flatten=True) #flatten gives a single gray scale layer
 #image = image[:,:,0]
 
-image = np.zeros(shape=(400, 400),dtype=complex) + (0.8*1j*image/image.max())  # bara complex del nu
+# generalisea ':
+image = np.zeros(shape=(400, 400),dtype=complex) +  (0.2*image/image.max()) +  (0.8*1j*image/image.max())  # bara complex del nu
 
 Nsize = 256  #(brukade vara 60)
 
 imageSet=np.zeros((625,Nsize, Nsize),dtype=complex) #have to uese double paranthesis
 diffSet=np.zeros((625, Nsize, Nsize),dtype=complex) #have to uese double paranthesis
+# diffSet bilder kommer ju inte var komplexa från experiment
 
 # object får den nog inte heta object. 
 # make sure it can hold complex numbers
@@ -36,7 +39,7 @@ objectIlluminated = np.ones(shape=(Nsize, Nsize))
 
 
 probeSize = 25   #!=probe.shapeOBS måste ändra i probe def också
-stepsize = int(probeSize * 0.4)   #för 60% överlapp  # är en float. gör om till int
+stepsize = 20#int(probeSize * 0.4)   #för 60% överlapp  # är en float. gör om till int
 nbrScans = math.floor((image.shape[0] - Nsize) / stepsize)
 
 # probe must be the same size as the object for multiplication
@@ -55,28 +58,31 @@ for ypos in range(0, nbrScans+1):   #+1?
         diffSet[index] =  abs(fft.fftshift(fft.fft2(imageSet[index]*probe)))
         index = index+1
 # look att diff patterns:        
-plt.imshow(np.log10(abs(diffSet[5])))
+#plt.imshow(np.log10(abs(diffSet[5])))
 
 
 # define iteration counter for outer loop
 k = 0
 # number of iterations of outer loop
-n = 1
+n = 8
+
+fig = plt.figure()
+#figT = plt.figure()
+ims = []
+#imsT = []
 
 # initialize vector for error calculation
 sse = np.zeros(shape=(n,1))
 diffSetIndex = 0
 while k < n:
-    # Start of inner loop: (where you niterate through all probe positions R)
+    # Start of inner loop: (where you iterate through all probe positions R)
     # loop over xaxis and y axis
-    for ypos in range(0, nbrScans+1):           #egentligen onödigt med 2 loopar
+    for ypos in range(0, nbrScans+1):           #egentligen onödigt med 2 loopar. lättare att läsa
         for xpos in range(0, nbrScans+1):
             
              # Cut out the part of the image that is illuminated at R(=(ypos,xpos)
              objectIlluminated = objectFunc[ypos*stepsize:ypos*stepsize+Nsize, xpos*stepsize:xpos*stepsize+Nsize]
-             testIfobjIllisRight[ypos*stepsize:ypos*stepsize+Nsize, xpos*stepsize:xpos*stepsize+Nsize] = abs(image[ypos*stepsize:ypos*stepsize+Nsize, xpos*stepsize:xpos*stepsize+Nsize])
-             # objectFunc[ypos*8:ypos*8+60, xpos*8:xpos*8+60] = objectFunc[0:60,xpos*8:xpos*8+60] + probe
-             
+                                      
             
              # get the guessed wave field out from the object at position R (only at position R)
              g = objectIlluminated * probe      
@@ -95,21 +101,28 @@ while k < n:
              # det ska vara skillnaden mellan gamla gissningen (i punkten  R) och nya 
              # conj()
              objectFunc[ypos*stepsize:ypos*stepsize+Nsize, xpos*stepsize:xpos*stepsize+Nsize] =  objectFunc[ypos*stepsize:ypos*stepsize+Nsize, xpos*stepsize:xpos*stepsize+Nsize] + (gprime-g) * np.conj(probe) # probe* annars blir det att man delar med massa nollor
-             
+             # anim
+             im = plt.imshow(abs(objectFunc), animated=True)
+             ims.append([im])
+
              diffSetIndex = diffSetIndex+1
              save = diffSetIndex
-             k=k+1
-           #  plt.figure()
-            # plt.imshow(abs(objectFunc))
-           #  plt.waitforbuttonpress(1)
+             
+#             fig = plt.figure(1)
+#             plt.imshow(abs(objectFunc))
+#             plt.savefig('foo/foo'+ str(k) +'.jpg')
+             #plt.close() 
+
 #             plt.figure()
 #             plt.imshow(abs(objectFunc))
 
              # update probe function
              #probe = probe + gprime/objectIlluminated  
-             
- 
-   # sse[k-1] = sum(sum( (diffSet[224]**2 - G**2 ) / 65536 ))**2  #dela innanför
+    # k var felplacerad förut         
+    k=k+1        
+#    imT = plt.imshow(abs(objectFunc), animated=True)
+#    imsT.append([imT])
+    # sse[k-1] = sum(sum( (diffSet[224]**2 - G**2 ) / 65536 ))**2  #dela innanför
     #SSE[0][k] =  sum(sum(abs(Gprime - diffSet[3] )**2 ))
     diffSetIndex = 0
    # plt.figure()
@@ -118,6 +131,16 @@ while k < n:
     #plt.imshow(abs(objectFunc))
 # End of iterations
     
-testtt=abs(objectFunc)
+#fig = plt.figure()
+#
+#absOri=abs(image)
+#absOb=abs(objectFunc)
+ani = animation.ArtistAnimation(fig, ims, interval=150, blit=True,repeat_delay=2000)
+#aniT = animation.ArtistAnimation(figT, imsT, interval=4000, blit=True,repeat_delay=2000)
+plt.show()
+
 plt.figure()
 plt.imshow(abs(objectFunc))
+#plt.figure()
+#plt.imshow(abs(image)
+
