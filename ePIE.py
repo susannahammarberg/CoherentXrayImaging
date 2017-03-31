@@ -37,12 +37,12 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
     # define iteration counter for outer loop
     k = 0
     # number of iterations of outer loop
-    n = 14
+    n = 2
     
     # figure for animation
-   # fig = plt.figure()
-    
-    # Initialize vector for animation data
+#    fig = plt.figure()
+#    
+#    # Initialize vector for animation data
 #    ims = []
 #    
     # initialize vector for error calculation
@@ -54,14 +54,13 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
         # Start of inner loop: (where you iterate through all probe positions R)
         for u in range(0,nbr_scans):
             
+            # define xposition in matrix from motorposition            
             yposition = int(np.round(positiony[u]/ypixel))    
             xposition = int(np.round(positionx[u]/xpixel))
-
+            
             # Cut out the part of the image that is illuminated at R(=(ypos,xpos)
             objectIlluminated = objectFunc[yposition : yposition + ysize, xposition : xposition + xsize ]
-            
-            #objectFunc[ypos*stepsize:ypos*stepsize+ysize, xpos*stepsize:xpos*stepsize+xsize]
-                                             
+                                                        
             # get the guessed wave field out from the object at position R (only at position R)
             g = objectIlluminated * probe      
         
@@ -74,35 +73,24 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
             # inverse Fourier transform  
             gprime =  ( fft.ifft2(fft.ifftshift(Gprime)))
         
-            # update the TOTAL object function with the illuminated part
-            # det ska vara skillnaden mellan gamla gissningen (i punkten  R) och nya 
-            # conj()
+            # update the total object function with the illuminated part
             objectFunc[yposition : yposition + ysize, xposition : xposition + xsize ] = objectIlluminated + (gprime-g) * np.conj(probe) / (np.max(abs(probe))**2)# probe* annars blir det att man delar med massa nollor
             # update probe function
             probe = probe + 1 *(gprime-g) * np.conj(objectIlluminated)/ (np.max(abs(objectIlluminated))**2)
             
             # anim
-#            im = plt.imshow(abs(objectFunc), animated=True)
+#            im = plt.imshow(abs(objectFunc), animated=True, interpolation='none', extent=[0,6.837770297837617,0,6.825238081022181])
+#            plt.xlabel(' [µm]')
 #            ims.append([im])
-            #np.disp(u)
-        
+
         k=k+1        
-        np.disp(k)                    # va!?
-        # sse[k-1] = sum(sum( (diffSet[224]**2 - G**2 ) / 65536 ))**2  #dela innanför
+        np.disp(k)                    
+        # sse[k-1] = sum(sum( (diffSet[nbr_scans]**2 - abs(G)**2 ) / 65536 ))**2  #dela innanför
         #SSE[0][k] =  sum(sum(abs(Gprime - diffSet[3] )**2 ))
 
        
     # End of iterations
     
-    
-    #absOri=abs(image)
-    #absOb=abs(objectFunc)
-#    ani = animation.ArtistAnimation(fig, ims, interval=150, blit=True,repeat_delay=2000)
-#  
-    plt.figure()
-    plt.imshow(np.log10(abs(objectFunc)))
-    plt.figure()
-    plt.imshow(abs(objectFunc))
-#    plt.figure()
-#    plt.imshow(abs(gprime))
-    return abs(objectFunc)
+#    ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True,repeat_delay=2000)
+
+    return (objectFunc, probe)
