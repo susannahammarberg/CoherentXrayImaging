@@ -28,8 +28,7 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
     g = np.zeros((625, ysize, xsize),dtype=np.complex64)
     gprime = np.zeros((625, ysize, xsize),dtype=np.complex64)
     G = np.zeros((625, ysize, xsize),dtype=np.complex64)
-    Gprime = np.zeros((625, ysize, xsize),dtype=np.complex64)
-    
+    Gprime = np.zeros((625, ysize, xsize),dtype=np.complex64)   
     
     #flytta ut ur funktion
     nbr_scans = 960
@@ -37,16 +36,16 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
     # define iteration counter for outer loop
     k = 0
     # number of iterations of outer loop
-    n = 2
+    n = 1
     
     # figure for animation
-#    fig = plt.figure()
-#    
-#    # Initialize vector for animation data
-#    ims = []
-#    
+    fig = plt.figure()
+    
+    # Initialize vector for animation data
+    ims = []
+    
     # initialize vector for error calculation
-   # sse = np.zeros(shape=(n,1))
+    sse = np.zeros(shape=(n,1))
 
    
     # Start of ePIE iterations
@@ -79,9 +78,9 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
             probe = probe + 1 *(gprime-g) * np.conj(objectIlluminated)/ (np.max(abs(objectIlluminated))**2)
             
             # anim
-#            im = plt.imshow(abs(objectFunc), animated=True, interpolation='none', extent=[0,6.837770297837617,0,6.825238081022181])
+            im = plt.imshow(abs(objectFunc), animated=True, interpolation='none', extent=[0,6.837770297837617,0,6.825238081022181])
 #            plt.xlabel(' [µm]')
-#            ims.append([im])
+            ims.append([im])
 
         k=k+1        
         np.disp(k)                    
@@ -91,6 +90,6 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
        
     # End of iterations
     
-#    ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True,repeat_delay=2000)
+    ani = animation.ArtistAnimation(fig, ims, interval=5, blit=True,repeat_delay=2000)
 
-    return (objectFunc, probe)
+    return (objectFunc, probe, ani)

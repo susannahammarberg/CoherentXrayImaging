@@ -5,17 +5,17 @@ Created on Mon Mar 13 15:40:49 2017
 @author: HonkyT
 """
 # supports sparse matrices. dont know how they work with np matrises
-import scipy.sparse as sparse
+#import scipy.sparse as sparse
 from ePIE import ePIE  
 from create2Dgaussian import create2Dgaussian
 import matplotlib.pyplot as plt
 import numpy as np
 import h5py
-from math import floor
+#from math import floor
 from math import ceil
 
 from sys import getsizeof   #se hur mkt minne variabler tar upp 
-import matplotlib.animation as animation
+#import matplotlib.animation as animation
 
 
 plt.close("all")
@@ -34,12 +34,10 @@ Nx = 192
 yfactor = (1/Ny)*z*wavelength
 xfactor = (1/Nx)*z*wavelength
 
-# allocate memory for the diffraction patterns
+# create matrix to hold diffraction patterns
 diffSet=np.zeros((nbr_scans, 195, 487))
 
-
-
-# läs in data från hdf5-filerna
+# read data from hdf5-files
 for scan_nbr in range(0,nbr_scans): 
     scan33 = h5py.File('scan33/pilatus_scan_33_' + str('{0:04}'.format(scan_nbr)) + '.hdf5','r') # read-only
     data_scan33 = scan33.get('/entry_0000/measurement/Pilatus/data' )
@@ -72,7 +70,6 @@ motorpositionx = np.array(dataset_motorpositionx)
 
 del metadata
  
-
 # calculate how long each step is in x and y OBS kan också vara minus
 stepSizex = np.zeros((nbr_scansx,1))
 stepSizey = np.zeros((nbr_scansy,1))
@@ -81,8 +78,8 @@ for i in range(0,nbr_scansx):   #gör 2 loops for diffrent nbr of scans in y and
     stepSizey[i] = (motorpositiony[i+1] - motorpositiony[i]) * 1E-6
 
 # probe construction
-sigmay = 10.1;               # initial value of gaussian height
-sigmax = 15#11.8;               # initial value of gaussian width
+sigmay = 15.1;               # initial value of gaussian height
+sigmax = 11#11.8;               # initial value of gaussian width
 probe = create2Dgaussian( sigmay, sigmax, diffSet.shape[1], diffSet.shape[2])
 
 # initial guess for probe (the inner size with ones) and outer size as diffSet:
@@ -100,7 +97,7 @@ sizeDiffObjectx =  Nx * xpixel
 sizeDiffObjecty =  Ny * ypixel
 
 # hur långt motorn rör sig i x och yled: 
-motorWidthx = ( motorpositionx.max() - motorpositionx.min()  )* 1E-6
+motorWidthx = ( motorpositionx.max() - motorpositionx.min()  ) * 1E-6
 motorWidthy = ( motorpositiony.max() - motorpositiony.min()  )* 1E-6
 
 # so the size of the object function should be enough to contain:
@@ -115,48 +112,46 @@ objectFuncNx = ceil(objectFuncSizeMaxx / xpixel)
 objectFunc = np.zeros((objectFuncNy, objectFuncNx))
 
 
-
-## Initialize vector for animation data
-#ims = []
+#
 positiony = (motorpositiony - motorpositiony.min() ) *1E-6
 positionx = (motorpositionx - motorpositionx.min() ) *1E-6
 
 # run ePIE
-objectFunc, probe = ePIE(diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx)
+objectFunc, probe, ani = ePIE(diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx)
 
 ##############################PLOTTING################
-#plt.show()
+plt.show()
 
-def plott():  
-    plt.figure()     #, origin="lower"
-    plt.imshow((np.angle(objectFunc)), interpolation='none', extent=[0,6.837770297837617,0,6.825238081022181])
+#def plott():  
+plt.figure()     #, origin="lower"
+plt.imshow((np.angle(objectFunc)), interpolation='none', extent=[0,6.837770297837617,0,6.825238081022181])
    # plt.gca().invert_yaxis()  Detta är väl som Alex eg
-    plt.xlabel(' [µm]')
-    plt.ylabel(' [µm]')
-    plt.title('Object phase')
-    plt.colorbar()
+plt.xlabel(' [µm]')
+plt.ylabel(' [µm]')
+plt.title('Object phase')
+plt.colorbar()
    
-    plt.figure()                                                            # horisontalt vertikalt. xpixel * size(objectfunc[xled])
-    plt.imshow(abs(objectFunc), interpolation='none', extent=[0,6.837770297837617,0,6.825238081022181])
-    plt.xlabel(' [µm]')
-    plt.ylabel(' [µm]')
-    plt.title('Object amplitude')
-    plt.colorbar()
-        
-    plt.figure()
-    plt.imshow(abs(probe), interpolation='none', extent=[0,3.7943696450428395,0,3.7943696450428395])
-    plt.xlabel(' [µm]')
-    plt.ylabel(' [µm]')
-    plt.title('Probe amplitude')
-    plt.colorbar()
+plt.figure()                                                            # horisontalt vertikalt. xpixel * size(objectfunc[xled])
+plt.imshow(abs(objectFunc), interpolation='none', extent=[0,6.837770297837617,0,6.825238081022181])
+plt.xlabel(' [µm]')
+plt.ylabel(' [µm]')
+plt.title('Object amplitude')
+plt.colorbar()
     
-    plt.figure()                                                            # horisontalt vertikalt
-    plt.imshow(np.angle(probe), interpolation='none', extent=[0,3.7943696450428395,0,3.7943696450428395])
-    plt.xlabel(' [µm]')
-    plt.ylabel(' [µm]')
-    plt.title('Probe phase')
-    plt.colorbar()
-    return 0
+plt.figure()
+plt.imshow(abs(probe), interpolation='none', extent=[0,3.7943696450428395,0,3.7943696450428395])
+plt.xlabel(' [µm]')
+plt.ylabel(' [µm]')
+plt.title('Probe amplitude')
+plt.colorbar()
+
+plt.figure()                                                            # horisontalt vertikalt
+plt.imshow(np.angle(probe), interpolation='none', extent=[0,3.7943696450428395,0,3.7943696450428395])
+plt.xlabel(' [µm]')
+plt.ylabel(' [µm]')
+plt.title('Probe phase')
+plt.colorbar()
+ #   return 0
 
 
 
