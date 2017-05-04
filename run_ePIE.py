@@ -6,8 +6,12 @@ Created on Mon Mar 13 15:40:49 2017
 
 See s.50 Giewekemeyer thesis för att gå mellan detektorplan och objektplan
 """
-from IPython import get_ipython
-get_ipython().magic('reset -sf')
+#from IPython import get_ipython
+#get_ipython().magic('reset -sf')
+
+import sys   #to collect system path ( to collect function from another directory)
+sys.path.insert(0, 'C:/Users/HonkyT/Desktop/CXI/Shrinkwrap') #to collect 2Dgaussian
+
 
 # supports sparse matrices. dont know how they work with np matrises
 #import scipy.sparse as sparse
@@ -21,14 +25,15 @@ from math import floor
 from math import ceil
 from scipy import misc # to imoport image
 
-from sys import getsizeof   #se hur mkt minne variabler tar upp 
+#from sys import getsizeof   #se hur mkt minne variabler tar upp 
 #import matplotlib.animation as animation
 
 
 
 plt.close("all")
 #directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_49_'
-directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_51_'
+directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_38_'
+#directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_51_'
 #directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_49_'
 #directory = 'F:/Nanomax/Vogt_ptycho/scan33/pilatus_scan_33_'
 #directory = 'F:/Nanomax/Vogt_ptycho/scan83/pilatus_scan_83_'
@@ -37,27 +42,33 @@ directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_51_'
 #metadata_directory = 'F:/Nanomax/Vogt_ptycho/scan33/DiWCr4_1.h5' 
 metadata_directory ='F:/Nanomax/Wallentin/JWX31C_1/JWX31C_1.h5' 
 
-# No mask created for Wallentin. (detector is same so mask is the same?) ((No, there are 2 different mask for 2 Voigt scans))
+# No mask created for Wallentin (by alex)
 #mask_directory = 'scan33_mask.hdf5'
-mask_directory = 'scan83_mask.hdf5'
+#mask_directory = 'scan83_mask.hdf5'
 
-motorpositions_directory = '/entry51'   
-#motorpositions_directory = '/entry49'   
+#motorpositions_directory = '/entry51' #J.W  
+motorpositions_directory = '/entry38' #J.W
+#motorpositions_directory = '/entry49' #J.W  
 #motorpositions_directory = '/entry83'  
 #motorpositions_directory = '/entry33'  
 
 
-nbr_scans = 440 # 440 Scan49 J.W    #960 #(+1)
-nbr_scansy = 21# 31
-nbr_scansx = 21#31
+nbr_scans = 441     # 440 Scan49,38 J.W    #960 #(+1)
+#nbr_scansy = 31    #21#for scan49 J.W
+#nbr_scansx = 31
+nbr_scansy = 21
+nbr_scansx = 21
 
 # parameters for conversion between detector and object plane
-energy = 10.7 # Wallentin 8.17# vogt # keV  
+energy = 10.7#     # ?Wallentin.    
+# energy = 8.17 vogt # keV  
 wavelength = (1.23984E-9)/energy
 pixel_det = 172E-6   # Pixel ctr to ctr distance (w) [m] #Pilatus
 z = 4.3
-Ny = 164
-Nx = 184#    #192 vogt33   184 Wallentin51
+Ny = 164        # nbr_pixels of centred and cut diffraction patterns
+#Nx = 192    # vogt33
+Nx = 184       #Wallentin51
+
 yfactor = (1/Ny)*z*wavelength
 xfactor = (1/Nx)*z*wavelength
 
@@ -68,17 +79,9 @@ diffSet=np.zeros((nbr_scans, 195, 487))
 for scan_nbr in range(0,nbr_scans): 
     scan = h5py.File( directory  + str('{0:04}'.format(scan_nbr)) + '.hdf5','r') # read-only
     data_scan = scan.get('/entry_0000/measurement/Pilatus/data' )
-    np_data = np.array(data_scan)   #Varför har den tre dimensioner?
-    # rotate and remove 3D thing
-    np_data = (np_data[0])
-    diffSet[scan_nbr] = np_data
- 
+    diffSet[scan_nbr] = np.array(data_scan)   #Varför har den tre dimensioner?
 
-# gather mask
 
-#mask_file = h5py.File(mask_directory)
-#meta_mask = mask_file.get('/mask')
-#probe_mask = np.array(meta_mask)
 
 def create_mask():
 ##    probe_mask = np.ones((diffSet.shape[1],diffSet.shape[2]))
@@ -98,11 +101,11 @@ def create_mask():
 #    probe_mask[111,241] = 0
 #    probe_mask[112,240] = 0
 
-    j=239
+    j=238
 
     probe_mask[111,j:245] = 0
     probe_mask[112,j:245] = 0
-    probe_mask[113,j:245] = 0
+    probe_mask[113,j:245] = 0 
     probe_mask[114,j:245] = 0
     probe_mask[115,j:245] = 0
     
@@ -119,34 +122,49 @@ def create_mask():
 
     return probe_mask
 
+# Choose mask: gather mask or make mask'
+
+#mask_file = h5py.File(mask_directory)
+#meta_mask = mask_file.get('/mask')
+#probe_mask = np.array(meta_mask)
+
+
 probe_mask = create_mask()
 
 # apply mask
 diffSet = probe_mask * diffSet
 
-#del probe_mask
+del probe_mask
 
+     #this has to be done with care taken of the overlaps just like the ePIE. moved it there
+def photon_counter():
+    index = 0# OK to use same variable name as in other places in code since it is in a function, right?
+    # for photon counting
+    photons = np.zeros((nbr_scansy,nbr_scansx)) 
+    for row in range(0,nbr_scansy):
+        for col in range(0,nbr_scansx):
+            photons[row,col] = sum(sum(diffSet[index]))
+            index = index+1
+            
+    return photons
+photons = photon_counter()
+plt.figure()
+plt.imshow(photons, cmap='gray' )
+plt.title('Photon counting')
 # Trim and center the diffraction patterns around max intensity
 # look att the sum of all patterns:
 #def trim_center(diffSet):
 summed_diffSet = sum(diffSet)
 vect = sum(summed_diffSet/summed_diffSet)
 
-### plot sum of diffPatterns
-plt.figure()
-plt.imshow((sum(diffSet)) , cmap='gray')
-plt.title('All diffraction patterns summed')
-plt.colorbar()
+#TODO: Whrite a function that finds the center of the diffraction patterns.
+# Perhaps not by centering round the pixel with highest intensity but instead
+# centering around the circle in the patterns. (look at a line scan profile)
 
 # inte riktigt rätt för Wallentin, max är vid y=82 (rätt) x=92 (hä, 96)
 #diffSet = diffSet[:, 31:195, 150:342] # Vogt33
 diffSet = diffSet[:, 31:195, 152:336] # Wallentin51 ändra NxNy också
 
-###plot the trimmed and centered sum of diffPatterns
-plt.figure()
-plt.imshow(np.log10(sum(diffSet)))
-plt.title('All diffraction patterns summed')
-plt.colorbar()
 
 # gather motor postions
 metadata = h5py.File( metadata_directory)
@@ -165,18 +183,32 @@ for i in range(0,nbr_scansx):   #gör 2 loops for diffrent nbr of scans in y and
     stepSizey[i] = (motorpositiony[i+1] - motorpositiony[i]) * 1E-6
 
 # probe construction
-sigmay = 10# 14.1               # initial value of gaussian height
-sigmax = 11.8                     # initial value of gaussian width
+sigmay = 2#14.1# 14.1               # initial value of gaussian height
+sigmax = 2                    # initial value of gaussian width
 probe = create2Dgaussian( sigmay, sigmax, diffSet.shape[1], diffSet.shape[2])
 
+#test_circular probe function taken from https://mail.scipy.org/pipermail/numpy-discussion/2011-January/054470.html
+def test_circular_probe(xSize,ySize):
+    radius = 10
+    array = np.zeros((ySize, xSize)).astype('uint8')
+    cx, cy = 100, 100 # The center of circle
+    y, x = np.ogrid[-radius: radius, -radius: radius]
+    index = x**2 + y**2 <= radius**2
+    array[cy-radius:cy+radius, cx-radius:cx+radius][index] = 1
+    return array
+#test = test_circular_probe(diffSet.shape[1],diffSet.shape[2])
+
 def circular_probe():
-    circle = misc.imread('circle.png',flatten=True)
+    circle = misc.imread('circle_small.png',flatten=True)
     low_values_indices = circle < 200  # Where values are low
     circle[low_values_indices] = 0  # All low values set to 0
     high_values_indices = circle > 0
     circle[high_values_indices] = 1
     return circle
-phase = np.pi/2 * np.logical_not(circular_probe())
+
+#phase = np.pi/2 * np.logical_not(circular_probe())
+
+
 #phase = np.zeros((diffSet.shape[1],diffSet.shape[2]))
  ##initial guess for probe (square with amplitude 1 everywhere):
 #probeInnerSize = 12#with ones
@@ -192,11 +224,12 @@ phase = np.pi/2 * np.logical_not(circular_probe())
 ## Create square phase 
 #phase = np.pi * np.ones((diffSet.shape[1],diffSet.shape[2]), dtype=np.complex64)
 # create complex probe?
-probe = probe * np.exp(1j*phase)
+#probe = probe * np.exp(1j*phase)
 
 # size of one pixel in objectplane. (blir annorlunda för att Nx och Ny är olika)
 xpixel = xfactor/pixel_det
 ypixel = yfactor/pixel_det
+
 # what the width of the diffraction pattern equals to in object plan (pixlar * pixelstorlekx/y)
 sizeDiffObjectx =  Nx * xpixel
 sizeDiffObjecty =  Ny * ypixel
@@ -205,7 +238,7 @@ sizeDiffObjecty =  Ny * ypixel
 motorWidthx = ( motorpositionx.max() - motorpositionx.min() ) * 1E-6
 motorWidthy = ( motorpositiony.max() - motorpositiony.min() ) * 1E-6
 
-# so the size of the object function should be enough to contain:
+# so the size of the object function should be enough to contain: (but actually it becomes a little bit larger because i have to round of to a hole pixel)
 objectFuncSizeMaxy = motorWidthy + sizeDiffObjecty
 objectFuncSizeMaxx = motorWidthx + sizeDiffObjectx
 
@@ -213,30 +246,30 @@ objectFuncSizeMaxx = motorWidthx + sizeDiffObjectx
     # should i use ceil!? or floor?
 objectFuncNy = ceil(objectFuncSizeMaxy / ypixel)
 objectFuncNx = ceil(objectFuncSizeMaxx / xpixel)
+
 # allocate memory for object function
 objectFunc = np.zeros((objectFuncNy, objectFuncNx))
-
 
 # 'normalized' motorpostions converted to meters
 positiony = (motorpositiony - motorpositiony.min() ) *1E-6
 positionx = (motorpositionx - motorpositionx.min() ) *1E-6
 
 
-# ska dessa användas ? vet ej men får samma (!?) resultat
+## ska dessa användas ? vet ej men får samma (!?) resultat
 #positiony = abs(motorpositiony - motorpositiony.max() ) *1E-6
 #positionx = abs(motorpositionx - motorpositionx.max() ) *1E-6
-
-# mirror diffraction patterns
+#
+## mirror diffraction patterns
 #diffSet = np.fliplr(diffSet)
 
-plt.figure()
-plt.imshow(abs(probe), cmap='gray', interpolation='none', extent=[0,3.7943696450428395,0,3.7943696450428395])
+plt.figure()                                #                        x                  y
+plt.imshow(abs(probe), cmap='gray', interpolation='none', extent=[0,sizeDiffObjecty*1E6,0,sizeDiffObjecty*1E6])
 plt.xlabel(' [µm]')
 plt.ylabel(' [µm]')
 plt.title('Probe amplitude')
 plt.colorbar()
 plt.figure()
-plt.imshow(np.angle(probe), cmap='gray', interpolation='none', extent=[0,3.7943696450428395,0,3.7943696450428395])
+plt.imshow(np.angle(probe), cmap='gray', interpolation='none', extent=[0,sizeDiffObjecty*1E6,0,sizeDiffObjecty*1E6])
 plt.xlabel(' [µm]')
 plt.ylabel(' [µm]')
 plt.title('Probe phase')
@@ -247,17 +280,23 @@ objectFunc, probe, ani, sse, psi = ePIE(diffSet, probe, objectFuncNy, objectFunc
 
 ### make ePIE function return psi (exit wave) for every position of probe
 # sum over all positions?
-psi = sum(psi)
-fft1 = fft.fft(psi)
-plt.figure()
-plt.plot(fft1)
+#psi = sum(psi)
+#fft1 = fft.fft(psi)
+#plt.figure()
+#plt.plot(fft1)
 
 ##############################PLOTTING################
-plt.show()
+plt.show() #show animation
+###plot the trimmed and centered sum of diffPatterns
+plt.figure()
+plt.imshow(np.log10(sum(diffSet)))
+plt.title('All diffraction patterns summed')
+plt.colorbar()
+
 
 #def plott():  
 plt.figure()     #, origin="lower"                         # sets the scale on axes. Should be calculated for every new experiment
-plt.imshow((np.angle(objectFunc)), interpolation='none', extent=[0,6.837770297837617,0,6.825238081022181])
+plt.imshow( np.angle(objectFunc), interpolation='none', extent=[0,objectFuncNy*ypixel*1E6, 0,objectFuncNx*xpixel*1E6])
 #plt.gca().invert_yaxis() 
 plt.xlabel(' [µm]')
 plt.ylabel(' [µm]')
@@ -266,21 +305,21 @@ plt.title('Object phase')
 plt.colorbar()
    
 plt.figure()                                                            # horisontalt vertikalt. xpixel * size(objectfunc[xled])
-plt.imshow(abs(objectFunc), interpolation='none', extent=[0,6.837770297837617,0,6.825238081022181])
+plt.imshow(abs(objectFunc), cmap='gray', interpolation='none', extent=[0,objectFuncNy*ypixel*1E6, 0,objectFuncNx*xpixel*1E6])
 plt.xlabel(' [µm]')
 plt.ylabel(' [µm]')
 plt.title('Object amplitude')
 plt.colorbar()
     
 plt.figure()
-plt.imshow(abs(probe), interpolation='none', extent=[0,3.7943696450428395,0,3.7943696450428395])
+plt.imshow(abs(probe), interpolation='none', extent=[0,sizeDiffObjecty*1E6, 0,sizeDiffObjecty*1E6])
 plt.xlabel(' [µm]')
 plt.ylabel(' [µm]')
 plt.title('Probe amplitude')
 plt.colorbar()
 
 plt.figure()                                                            # horisontalt vertikalt
-plt.imshow(np.angle(probe), interpolation='none', extent=[0,3.7943696450428395,0,3.7943696450428395])
+plt.imshow(np.angle(probe), interpolation='none', extent=[0,sizeDiffObjecty*1E6, 0,sizeDiffObjecty*1E6])
 plt.xlabel(' [µm]')
 plt.ylabel(' [µm]')
 plt.title('Probe phase')
