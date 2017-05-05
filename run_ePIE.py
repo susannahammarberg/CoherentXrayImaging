@@ -31,8 +31,9 @@ from scipy import misc # to imoport image
 
 
 plt.close("all")
-#directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_49_'
-directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_38_'
+
+#directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_38_'   #stående nanotråd
+directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_17_'
 #directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_51_'
 #directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_49_'
 #directory = 'F:/Nanomax/Vogt_ptycho/scan33/pilatus_scan_33_'
@@ -47,17 +48,18 @@ metadata_directory ='F:/Nanomax/Wallentin/JWX31C_1/JWX31C_1.h5'
 #mask_directory = 'scan83_mask.hdf5'
 
 #motorpositions_directory = '/entry51' #J.W  
-motorpositions_directory = '/entry38' #J.W
+#motorpositions_directory = '/entry38' #J.W
+motorpositions_directory = '/entry17' #J.W
 #motorpositions_directory = '/entry49' #J.W  
 #motorpositions_directory = '/entry83'  
 #motorpositions_directory = '/entry33'  
 
 
-nbr_scans = 441     # 440 Scan49,38 J.W    #960 #(+1)
+nbr_scans = 221    #441     # 441 Scan49,38 J.W    #960 #(+1)
 #nbr_scansy = 31    #21#for scan49 J.W
 #nbr_scansx = 31
-nbr_scansy = 21
-nbr_scansx = 21
+nbr_scansy = 17#21
+nbr_scansx = 13#21
 
 # parameters for conversion between detector and object plane
 energy = 10.7#     # ?Wallentin.    
@@ -136,7 +138,12 @@ diffSet = probe_mask * diffSet
 
 del probe_mask
 
-     #this has to be done with care taken of the overlaps just like the ePIE. moved it there
+#TODO: create dark field 'filter' a cirle around the center of the diffraction patterns without the center highest intensity pixels (from higher energies)
+#def dark_field():
+#    # cirkel with 
+#    dark_field = np.zeros(())
+
+
 def photon_counter():
     index = 0# OK to use same variable name as in other places in code since it is in a function, right?
     # for photon counting
@@ -287,10 +294,21 @@ objectFunc, probe, ani, sse, psi = ePIE(diffSet, probe, objectFuncNy, objectFunc
 
 ##############################PLOTTING################
 plt.show() #show animation
+
+#nollor = np.zeros((diffSet.shape[1],diffSet.shape[2]))
+#nollor[:,diffSet.shape[2]/2] = 1 
+diffSet[:,:,diffSet.shape[2]/2] = 1 
+diffSet[:,diffSet.shape[1]/2,:] = 1
 ###plot the trimmed and centered sum of diffPatterns
+#linex = np.linspace(0,diffSet.shape[2],diffSet.shape[2]+1)
+#liney = np.linspace(0,diffSet.shape[1],diffSet.shape[1]+1)
+#lineyy = diffSet.shape[1]/2 * np.ones((linex.shape))
+
 plt.figure()
 plt.imshow(np.log10(sum(diffSet)))
-plt.title('All diffraction patterns summed')
+#plt.imshow(nollor)
+#plt.plot( lineyy, linex)
+plt.title('All diffraction patterns summed with lines on centers of x and y axis')
 plt.colorbar()
 
 
