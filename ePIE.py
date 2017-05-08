@@ -33,7 +33,7 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
     # define iteration counter for outer loop
     k = 0
     # number of iterations of outer loop
-    n = 3
+    n = 7
     
     # figure for animation
     #fig = plt.figure()
@@ -74,12 +74,30 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
         
             # update the total object function with the illuminated part
             objectFunc[yposition : yposition + ysize, xposition : xposition + xsize ] = objectIlluminated + (gprime-g) * np.conj(probe) / (np.max(abs(probe))**2)# probe* annars blir det att man delar med massa nollor
-            ##update probe function
+            
+            #update probe function
 #            if k%4==0:
 #               probe = probe + 1 *(gprime-g) * np.conj(objectIlluminated)/ (np.max(abs(objectIlluminated))**2)
-            beta = 0.5
+            beta = 1
             probe = probe + beta *(gprime-g) * np.conj(objectIlluminated)/ (np.max(abs(objectIlluminated))**2)
             
+            ########################            
+            # Further constraints:
+            ########################
+            
+            # constraint object amplitude to 1
+            temp_Oamp = abs(objectFunc)
+            # constrain object amplitude to 1
+            temp_Oamp[temp_Oamp>1] = 1 
+            temp = np.angle(objectFunc)
+            objectFunc = temp_Oamp * np.exp(1j* temp)
+            
+            ##constraint phase amplitude to one 
+            temp_Pamp = abs(probe)
+            temp_Pamp[temp_Pamp>10] = 10
+            tempP = np.angle(probe)
+            probe = temp_Pamp * np.exp(1j* tempP)
+
             # anim
 #            im = plt.imshow(abs(objectFunc), animated=True, interpolation='none', extent=[0,6.837770297837617,0,6.825238081022181])
 
@@ -96,14 +114,20 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
         #SSE[0][k] =  sum(sum(abs(Gprime - diffSet[3] )**2 ))
 
        
-    # End of iterations
-    # calculate PRTF
+    # End of ePIE iterations
+    
+    # calculate PRTF:
     # define exit wave
-    psi = np.zeros((nbr_scans,probe.shape[0],probe.shape[1]),dtype=np.complex64)
+    psi = np.zeros((nbr_scans,probe.shape[0],probe.shape[1]),dtype=np.complex64)    
     # iterate over all probe positions
-    for u in range(0,nbr_scans):
-        psi[u] = probe * objectFunc[yposition : yposition + ysize, xposition : xposition + xsize ]
- #   plt.colorbar()
-  # ani = animation.ArtistAnimation(fig, ims, interval=5, blit=True,repeat_delay=2000)
+    for lu in range(0,nbr_scans):
+        # define xposition in matrix from motorposition            
+        yposition = int(np.round(positiony[lu]/ypixel))    
+        xposition = int(np.round(positionx[lu]/xpixel))
+                
+        # kolla om detta är rätt
+        #psi[lu] = probe * objectFunc[yposition : yposition + ysize, xposition : xposition + xsize ]
+         
+
     ani = 1
     return (objectFunc, probe, ani, sse, psi)
