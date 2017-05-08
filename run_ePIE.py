@@ -61,18 +61,8 @@ nbr_scans = 221    #441     # 441 Scan49,38 J.W    #960 #(+1)
 nbr_scansy = 17#21
 nbr_scansx = 13#21
 
-# parameters for conversion between detector and object plane
-energy = 10.7#     # ?Wallentin.    
-# energy = 8.17 vogt # keV  
-wavelength = (1.23984E-9)/energy
-pixel_det = 172E-6   # Pixel ctr to ctr distance (w) [m] #Pilatus
-z = 4.3
-Ny = 164        # nbr_pixels of centred and cut diffraction patterns
-#Nx = 192    # vogt33
-Nx = 184       #Wallentin51
 
-yfactor = (1/Ny)*z*wavelength
-xfactor = (1/Nx)*z*wavelength
+
 
 # create matrix to hold raw diffraction patterns
 diffSet=np.zeros((nbr_scans, 195, 487))   
@@ -138,31 +128,32 @@ diffSet = probe_mask * diffSet
 
 del probe_mask
 
-#TODO: create dark field 'filter' a cirle around the center of the diffraction patterns without the center highest intensity pixels (from higher energies)
-#def dark_field():
-#    # cirkel with 
-#    dark_field = np.zeros(())
-
-
-def photon_counter():
+def transmission_counter():
     index = 0# OK to use same variable name as in other places in code since it is in a function, right?
     # for photon counting
     photons = np.zeros((nbr_scansy,nbr_scansx)) 
+    max_intensity = np.sum(  np.sum(diffSet,axis=1) , axis=1).max()   # sum over rows and columns not sum over different diffPatterns
     for row in range(0,nbr_scansy):
         for col in range(0,nbr_scansx):
-            photons[row,col] = sum(sum(diffSet[index]))
+            photons[row,col] = sum(sum(diffSet[index])) / max_intensity
             index = index+1
             
     return photons
-photons = photon_counter()
+transmission = transmission_counter()
 plt.figure()
-plt.imshow(photons, cmap='gray' )
-plt.title('Photon counting')
+plt.imshow(transmission)
+plt.title('Transmission')
+plt.colorbar()
+
+
+
 # Trim and center the diffraction patterns around max intensity
 # look att the sum of all patterns:
 #def trim_center(diffSet):
 summed_diffSet = sum(diffSet)
 vect = sum(summed_diffSet/summed_diffSet)
+
+
 
 #TODO: Whrite a function that finds the center of the diffraction patterns.
 # Perhaps not by centering round the pixel with highest intensity but instead
@@ -170,8 +161,65 @@ vect = sum(summed_diffSet/summed_diffSet)
 
 # inte riktigt rätt för Wallentin, max är vid y=82 (rätt) x=92 (hä, 96)
 #diffSet = diffSet[:, 31:195, 150:342] # Vogt33
-diffSet = diffSet[:, 31:195, 152:336] # Wallentin51 ändra NxNy också
+#diffSet = diffSet[:, 31:195, 152:336] # Wallentin51 ändra NxNy också
+diffSet = diffSet[:, 31:195, 146:336]  # Wallentin17
 
+Ny = diffSet.shape[1]        # nbr_pixels of centred and cut diffraction patterns
+#Nx = 192    # vogt33
+Nx = diffSet.shape[2] # 184       #Wallentin51
+
+#test_circular probe function taken from https://mail.scipy.org/pipermail/numpy-discussion/2011-January/054470.html
+# used for dark field filter and also possible for initial probe definition
+# Not very round...
+
+def circular_matrix(ySize,xSize,radius):
+
+    array = np.zeros((ySize, xSize)).astype('uint8')
+    cx, cy = int(xSize/2), int(ySize/2) # The center of circle
+    y, x = np.ogrid[-radius: radius, -radius: radius]
+    index = x**2 + y**2 <= radius**2
+    array[cy-radius:cy+radius, cx-radius:cx+radius][index] = 1
+    return array
+
+radius = 35
+dark_field_filter = circular_matrix(diffSet.shape[1],diffSet.shape[2],radius)
+
+#TODO: create dark field image: intensity image of a cirle around the center of the diffraction patterns without the center highest intensity pixels (from higher energies)
+def dark_field(dark_field_filter):
+    # create a dark field filter
+    # apply to diffSet and after that sum as in transmission_counter
+    index = 0# OK to use same variable name as in other places in code since it is in a function, right?
+    filtered_diffSet =  dark_field_filter*diffSet
+    plt.figure()
+    plt.imshow(sum(filtered_diffSet))
+    plt.title('Sum of all diffraction patterns (centred and cut) with a dark-field filter ')
+    plt.colorbar()
+    # for photon counting
+    dark_field = np.zeros((nbr_scansy,nbr_scansx)) 
+    for row in range(0,nbr_scansy):
+        for col in range(0,nbr_scansx):
+            dark_field[row,col] = sum(sum(filtered_diffSet[index])) / sum(sum(diffSet[index]))
+            index = index+1
+            
+    return dark_field
+
+dark_field_image = dark_field(dark_field_filter)
+plt.figure()
+plt.imshow(dark_field_image)
+plt.title('Dark field image')
+plt.colorbar()
+
+
+# parameters for conversion between detector and object plane
+energy = 10.7#     # ?Wallentin.    
+# energy = 8.17 vogt # keV  
+wavelength = (1.23984E-9)/energy
+pixel_det = 172E-6   # Pixel ctr to ctr distance (w) [m] #Pilatus
+z = 4.3
+
+# factor for defining pixel sizes in object plane
+yfactor = (1/Ny)*z*wavelength
+xfactor = (1/Nx)*z*wavelength
 
 # gather motor postions
 metadata = h5py.File( metadata_directory)
@@ -190,30 +238,12 @@ for i in range(0,nbr_scansx):   #gör 2 loops for diffrent nbr of scans in y and
     stepSizey[i] = (motorpositiony[i+1] - motorpositiony[i]) * 1E-6
 
 # probe construction
-sigmay = 2#14.1# 14.1               # initial value of gaussian height
-sigmax = 2                    # initial value of gaussian width
+sigmay = 1 #2 14.1# 14.1               # initial value of gaussian height
+sigmax = 1 #2                    # initial value of gaussian width
 probe = create2Dgaussian( sigmay, sigmax, diffSet.shape[1], diffSet.shape[2])
 
-#test_circular probe function taken from https://mail.scipy.org/pipermail/numpy-discussion/2011-January/054470.html
-def test_circular_probe(xSize,ySize):
-    radius = 10
-    array = np.zeros((ySize, xSize)).astype('uint8')
-    cx, cy = 100, 100 # The center of circle
-    y, x = np.ogrid[-radius: radius, -radius: radius]
-    index = x**2 + y**2 <= radius**2
-    array[cy-radius:cy+radius, cx-radius:cx+radius][index] = 1
-    return array
-#test = test_circular_probe(diffSet.shape[1],diffSet.shape[2])
 
-def circular_probe():
-    circle = misc.imread('circle_small.png',flatten=True)
-    low_values_indices = circle < 200  # Where values are low
-    circle[low_values_indices] = 0  # All low values set to 0
-    high_values_indices = circle > 0
-    circle[high_values_indices] = 1
-    return circle
-
-#phase = np.pi/2 * np.logical_not(circular_probe())
+phase = np.pi/4 * circular_matrix(diffSet.shape[1],diffSet.shape[2],1)
 
 
 #phase = np.zeros((diffSet.shape[1],diffSet.shape[2]))
@@ -230,8 +260,8 @@ def circular_probe():
 
 ## Create square phase 
 #phase = np.pi * np.ones((diffSet.shape[1],diffSet.shape[2]), dtype=np.complex64)
-# create complex probe?
-#probe = probe * np.exp(1j*phase)
+# create complex probe
+probe = probe * np.exp(1j*phase)
 
 # size of one pixel in objectplane. (blir annorlunda för att Nx och Ny är olika)
 xpixel = xfactor/pixel_det
@@ -273,17 +303,18 @@ plt.figure()                                #                        x          
 plt.imshow(abs(probe), cmap='gray', interpolation='none', extent=[0,sizeDiffObjecty*1E6,0,sizeDiffObjecty*1E6])
 plt.xlabel(' [µm]')
 plt.ylabel(' [µm]')
-plt.title('Probe amplitude')
+plt.title('Initial probe amplitude')
 plt.colorbar()
 plt.figure()
 plt.imshow(np.angle(probe), cmap='gray', interpolation='none', extent=[0,sizeDiffObjecty*1E6,0,sizeDiffObjecty*1E6])
 plt.xlabel(' [µm]')
 plt.ylabel(' [µm]')
-plt.title('Probe phase')
+plt.title('Initial probe phase')
 plt.colorbar()
 
 # run ePIE
 objectFunc, probe, ani, sse, psi = ePIE(diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx, nbr_scans)
+
 
 ### make ePIE function return psi (exit wave) for every position of probe
 # sum over all positions?
@@ -295,10 +326,10 @@ objectFunc, probe, ani, sse, psi = ePIE(diffSet, probe, objectFuncNy, objectFunc
 ##############################PLOTTING################
 plt.show() #show animation
 
-#nollor = np.zeros((diffSet.shape[1],diffSet.shape[2]))
-#nollor[:,diffSet.shape[2]/2] = 1 
-diffSet[:,:,diffSet.shape[2]/2] = 1 
-diffSet[:,diffSet.shape[1]/2,:] = 1
+####nollor = np.zeros((diffSet.shape[1],diffSet.shape[2]))
+#####nollor[:,diffSet.shape[2]/2] = 1 
+diffSet[:,:,int(diffSet.shape[2]/2)] = 1 
+diffSet[:,int(diffSet.shape[1]/2),:] = 1
 ###plot the trimmed and centered sum of diffPatterns
 #linex = np.linspace(0,diffSet.shape[2],diffSet.shape[2]+1)
 #liney = np.linspace(0,diffSet.shape[1],diffSet.shape[1]+1)
@@ -308,7 +339,7 @@ plt.figure()
 plt.imshow(np.log10(sum(diffSet)))
 #plt.imshow(nollor)
 #plt.plot( lineyy, linex)
-plt.title('All diffraction patterns summed with lines on centers of x and y axis')
+plt.title('All diffraction patterns summed')
 plt.colorbar()
 
 
@@ -361,6 +392,9 @@ plt.title('Probe summed over all columns')
 
 plt.figure()
 plt.plot(abs(probe.sum(axis=1)))  #sum 
+#plt.axis([0, sizeDiffObjectx*1E6, 0, sizeDiffObjecty*1E6])    #kontrollera så att x är x och y är y 
+#plt.yscale( )
+#plt.axis.set_xscale(sizeDiffObjectx*1E6) 
 plt.xlabel(' [µm]')
 plt.title('Probe summed over all rows')
 
