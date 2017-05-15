@@ -33,7 +33,7 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
     # define iteration counter for outer loop
     k = 0
     # number of iterations of outer loop
-    n = 7
+    n = 0
     
     # figure for animation
     #fig = plt.figure()
@@ -78,37 +78,37 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
             #update probe function
 #            if k%4==0:
 #               probe = probe + 1 *(gprime-g) * np.conj(objectIlluminated)/ (np.max(abs(objectIlluminated))**2)
-            beta = 1
+            beta = 0.5
             probe = probe + beta *(gprime-g) * np.conj(objectIlluminated)/ (np.max(abs(objectIlluminated))**2)
             
             ########################            
             # Further constraints:
             ########################
             
-            # constraint object amplitude to 1
+            # constrain object amplitude to 1
             temp_Oamp = abs(objectFunc)
             # constrain object amplitude to 1
-            temp_Oamp[temp_Oamp>1] = 1 
+            temp_Oamp[temp_Oamp>1] = 1
             temp = np.angle(objectFunc)
             objectFunc = temp_Oamp * np.exp(1j* temp)
             
-            ##constraint phase amplitude to one 
-            temp_Pamp = abs(probe)
-            temp_Pamp[temp_Pamp>10] = 10
-            tempP = np.angle(probe)
-            probe = temp_Pamp * np.exp(1j* tempP)
+            ##constraint object phase to negative or 0
+            temp_Ophase = np.angle(objectFunc)
+            temp_Ophase[temp_Ophase>0.1] = 0
+            objectFunc = abs(objectFunc) * np.exp(1j* temp_Ophase)
+            
 
             # anim
 #            im = plt.imshow(abs(objectFunc), animated=True, interpolation='none', extent=[0,6.837770297837617,0,6.825238081022181])
-
-#            
+            ## Error estimate (sse)  Nu är alla diff mönster viktade på samma sätt. Inte så bra när de scans som är utanför provet är oviktiga/ger ingen information
+            sse[k] = sse[k] + sum(sum( (diffSet[k]**2 - abs(G)**2) / 65536  ))**2            
 #            plt.ylabel(' [µm]')
 #            plt.title('Object phase')
             
    #         ims.append([im])
-
-        sse[k] = sum(sum( (diffSet[nbr_scans-1]**2 - abs(G)**2 ) / 65536 ))**2  #dela innanför
-        k=k+1        
+          # tittar bara på sista scanet?
+     #   sse[k] = sum(sum( (diffSet[nbr_scans-1]**2 - abs(G)**2 ) / 65536 ))**2  #dela innanför
+        k = k+1        
         np.disp(k)                    
         
         #SSE[0][k] =  sum(sum(abs(Gprime - diffSet[3] )**2 ))
@@ -119,6 +119,7 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
     # calculate PRTF:
     # define exit wave
     psi = np.zeros((nbr_scans,probe.shape[0],probe.shape[1]),dtype=np.complex64)    
+    #transmis = np.zeros
     # iterate over all probe positions
     for lu in range(0,nbr_scans):
         # define xposition in matrix from motorposition            
