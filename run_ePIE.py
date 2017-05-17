@@ -29,12 +29,10 @@ from scipy.optimize import curve_fit as curve_fit
 
 plt.close("all")
 
-scan_name = 51
-#directory = 'C:/Users/HonkyT/Desktop/CXI/Ptychography/scan33/pilatus_scan_33_'
-#directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_38_'   #stående nanotråd
-#directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_17_'
-directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_51_'
-#directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_49_'
+scan_name_int = 51   # for Wallentin scans
+scan_name_string = '%d' %scan_name_int   
+directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_%s_' %scan_name_string 
+
 #directory = 'F:/Nanomax/Vogt_ptycho/scan33/pilatus_scan_33_'
 #directory = 'F:/Nanomax/Vogt_ptycho/scan83/pilatus_scan_83_'
 
@@ -42,14 +40,12 @@ directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_51_'
 #metadata_directory = 'F:/Nanomax/Vogt_ptycho/scan33/DiWCr4_1.h5' 
 metadata_directory ='F:/Nanomax/Wallentin/JWX31C_1/JWX31C_1.h5' 
 
-# No mask created for Wallentin (by alex)
+# Alex masks for Vogt
 #mask_directory = 'scan33_mask.hdf5'
 #mask_directory = 'scan83_mask.hdf5'
 
-motorpositions_directory = '/entry51' #J.W  
-#motorpositions_directory = '/entry38' #J.W
-#motorpositions_directory = '/entry17' #J.W
-#motorpositions_directory = '/entry49' #J.W  
+motorpositions_directory = '/entry%s' %scan_name_string           #J.W  
+
 #motorpositions_directory = '/entry83'  
 #motorpositions_directory = '/entry33'  
 
@@ -59,6 +55,14 @@ nbr_scansy = 31    #21#for scan49 J.W    #31 för scan 33
 nbr_scansx = 31
 #nbr_scansy = 17#21    scan 17 med 17x13?
 #nbr_scansx = 13#21
+
+# exp. parameters for conversion between detector and object plane
+energy = 10.72#     # ?Wallentin.    
+#energy = 8.17 #vogt # keV  
+wavelength = (1.23984E-9)/energy
+pixel_det = 172E-6   # Pixel ctr to ctr distance (w) [m] #Pilatus
+z = 4.3
+
 
 # create matrix to hold raw diffraction patterns
 diffSet=np.zeros((nbr_scans, 195, 487))   
@@ -79,37 +83,14 @@ def create_mask():
     sumTotalDiffSet= sum(diffSet)
     probe_mask = sumTotalDiffSet > 0
     
-    #probe_mask[6,59] = 0
-    #probe_mask[6,60] = 0
-    #probe_mask[2,243] = 0
-    #probe_mask[2,244] = 0
-    #probe_mask[11,304] = 0
-    #probe_mask[11,305] = 0
-    #probe_mask[56,101] = 0
-    
     # remove too high intensity pixels
-#    probe_mask[111,241] = 0
-#    probe_mask[112,240] = 0
-#this
     j=239
-
     probe_mask[111,j:245] = 0
     probe_mask[112,j:245] = 0
     probe_mask[113,j:245] = 0 
     probe_mask[114,j:245] = 0
     probe_mask[115,j:245] = 0
-    #tothis
-#    
-#    probe_mask[112,241] = 0
-#    probe_mask[112,242] = 0
-#    probe_mask[112,243] = 0
-#    probe_mask[113,241] = 0 
-    probe_mask[113,242] = 0 #pixel with highest intensity
-#    probe_mask[113,243] = 0
-#    probe_mask[114,241] = 0
-#    probe_mask[114,242] = 0
-#    probe_mask[114,243] = 0
-
+#    probe_mask[113,242] = 0 #pixel with highest intensity
     return probe_mask
 
 # Choose mask: gather mask or make mask'
@@ -125,9 +106,11 @@ diffSet = probe_mask * diffSet
 
 del probe_mask
 
-plt.figure()
-plt.imshow(np.log10(sum(diffSet)), cmap='gray', interpolation='none')
+plt.figure()#*pixel_det*1E3 *pixel_det*1E3]
+plt.imshow(np.log10(sum(diffSet)), cmap='gray', interpolation='none', extent=[0,diffSet.shape[2]*pixel_det*1E3, 0, diffSet.shape[1]*pixel_det*1E3])
 plt.title('log10 diffSet sum uncut')
+plt.xlabel(' [mm]')
+plt.ylabel(' [mm]')
 plt.colorbar()
 
 # Trim and center the diffraction patterns around max intensity
@@ -209,6 +192,7 @@ def diff_phase_contrast():
     diff_phasey = np.zeros((nbr_scansy, nbr_scansx))
     diff_phasex = np.zeros((nbr_scansy, nbr_scansx))
     pol_DPC = np.zeros((nbr_scansy,nbr_scansx))
+    pol_DPC_phi = np.zeros((nbr_scansy,nbr_scansx))
     test_x = np.zeros((nbr_scansy,nbr_scansx))
     test_y = np.zeros((nbr_scansy,nbr_scansx))
         
@@ -221,32 +205,24 @@ def diff_phase_contrast():
                     tempx = tempx + (n-nbr_scansx/2) * diffSet[index, m, n]
             # spara värdet på den första pixeln:
             # detta känns onödigt krävande för då måste if satsen kollas varje gång fast jag vet vilket k jag vill ha
-#            if index == 0:
-#                bkg_x = tempx
-#                bkg_y = tempy
-            # ska jag dela med sum sum?
+            if index == 0:
+                bkg_x = tempx
+                bkg_y = tempy
+            
             diff_phasey[row, col] = tempy / sum(sum(diffSet[index]))
             diff_phasex[row, col] = tempx / sum(sum(diffSet[index]))
-            test_x[row,col] = (tempx ) / sum(sum(diffSet[index])) - 68.25
-            test_y[row,col] = (tempy ) / sum(sum(diffSet[index])) - 62.2
+            test_x[row,col] = (tempx ) / sum(sum(diffSet[index])) - bkg_x # 68.25
+            test_y[row,col] = (tempy ) / sum(sum(diffSet[index])) - bkg_y # 62.2
             # DPC in polar coordinates. r:
-            pol_DPC[row, col] = np.sqrt(((tempy ) / sum(sum(diffSet[index])) - 62.2 )**2 + ((tempx ) / sum(sum(diffSet[index])) - 68.25)**2)
-            # pol_DPC[row, col] = np.sqrt((tempy)**2 ... gjorde jag innan men det är ju fel då glömmer jag ju att dela. minns ej varför jag gör det men det är nog det som är rätt
+            pol_DPC[row, col] = np.sqrt(( test_y[row, col])**2 + (test_x[col,row] )**2)
+            pol_DPC_phi[row, col] = np.arctan( test_y[row,col] / test_x[row,col]) #sum(sum(diffSet[index])), tempx  / sum(sum(diffSet[index])) )
             tempy = 0
             tempx = 0
             index = index + 1
-            
-    plt.figure()    
-    plt.imshow(test_x, cmap = 'gray', interpolation='none')
-    plt.title('DPCx bkg compensated')
-    plt.colorbar()   
-    plt.figure()    
-    plt.imshow(test_y, cmap = 'gray', interpolation='none')
-    plt.title('DPCy bkg compensated')
-    plt.colorbar()          
-    return diff_phasex, diff_phasey, pol_DPC
+         
+    return diff_phasex, diff_phasey, pol_DPC, pol_DPC_phi
 
-dpc_x, dpc_y, pol_DPC = diff_phase_contrast()
+dpc_x, dpc_y, pol_DPC, pol_DPC_phi = diff_phase_contrast()
 
 dark_field_image = dark_field(dark_field_filter)
 
@@ -262,41 +238,46 @@ dark_field_image = dark_field(dark_field_filter)
 def plot_analysis():
     
     plt.figure()
-    plt.imshow(transmission, cmap='gray', interpolation='none')
-    plt.title('Transmission')
+    plt.imshow(transmission, cmap='gray', interpolation='none', extent=[0,5, 0,5 ])# , extent=[0, ])
+    plt.title('Scan %d: Transmission'%scan_name_int)
+    plt.xlabel('Nominal motorposition')
     plt.colorbar()
 
     plt.figure()
     plt.imshow(dark_field_image, cmap='gray', interpolation='none')
-    plt.title('Scan %d: Dark field image'%((scan_name)))
+    plt.title('Scan %d: Dark field image'%scan_name_int)    #%d #%((scan_name))
     plt.colorbar()
     
     plt.figure()
     plt.imshow(sum(diffSet), interpolation='none')
-    plt.title('Sum of all diffraction patterns (centred and cut) without a dark-field filter ')
+    plt.title('Scan %d:  Sum diffPatterns without dark-field filter '%scan_name_int)
     plt.colorbar()
     
     plt.figure()
     plt.imshow(dark_field_filter*sum(diffSet), interpolation='none')
-    plt.title('Sum of all diffraction patterns (centred and cut) with a dark-field filter ')
+    plt.title('Scan %d: Sum diffPatterns with dark-field filter '%scan_name_int)
     plt.colorbar()
             
     plt.figure()
     plt.imshow(dpc_x, cmap='gray', interpolation='none')
-    plt.title('Differential phase constrast x')
+    plt.title('Scan %d: Differential phase constrast x'%scan_name_int)
     plt.colorbar()
     
     plt.figure()
     plt.imshow(dpc_y, cmap='gray', interpolation='none')
-    plt.title('Differential phase constrast y')
+    plt.title('Scan %d: Differential phase constrast y'%scan_name_int)
     plt.colorbar()
     plt.show()
     
     plt.figure()
     plt.imshow(pol_DPC, cmap='gray', interpolation='none')
-    plt.title('Differential phase constrast in pol cord r')
+    plt.title('Scan %d: Differential phase constrast in pol cord r'%scan_name_int)
     plt.colorbar()
-    plt.show()
+
+    plt.figure()    
+    plt.imshow(pol_DPC_phi, cmap = 'gray', interpolation='none')
+    plt.title('Scan %d: DPC_phi'%scan_name_int)
+    plt.colorbar()  
 
 plot_analysis()
 
@@ -309,12 +290,6 @@ pad_diffPatterns(4,5)
     
     
 
-# parameters for conversion between detector and object plane
-energy = 10.72#     # ?Wallentin.    
-#energy = 8.17 #vogt # keV  
-wavelength = (1.23984E-9)/energy
-pixel_det = 172E-6   # Pixel ctr to ctr distance (w) [m] #Pilatus
-z = 4.3
 
 # factor for defining pixel sizes in object plane
 yfactor = (1/Ny)*z*wavelength
@@ -484,16 +459,17 @@ plt.show() #show animation
 #liney = np.linspace(0,diffSet.shape[1],diffSet.shape[1]+1)
 #lineyy = diffSet.shape[1]/2 * np.ones((linex.shape))
 def plot():
+
     plt.figure()
-    plt.imshow(np.log10(sum(diffSet)))
-    #plt.imshow(nollor)
-    #plt.plot( lineyy, linex)
-    plt.title('All diffraction patterns summed')
+    plt.imshow(np.log10(sum(diffSet)), interpolation='none', extent=[0,diffSet.shape[1]*pixel_det*1E3, 0, diffSet.shape[2]*pixel_det*1E3] )
+    plt.xlabel(' y [mm]')
+    plt.ylabel(' x [mm]')
+    plt.title('log10 of all diffraction patterns summed')   
     plt.colorbar()
     
     
     #def plott():  
-    plt.figure()     #, origin="lower"                         # sets the scale on axes. Should be calculated for every new experiment
+    plt.figure()     #, origin="lower"                         # sets the scale on axes. 
     plt.imshow( np.angle(objectFunc), interpolation='none', extent=[0,objectFuncNy*ypixel*1E6, 0,objectFuncNx*xpixel*1E6])
     #plt.gca().invert_yaxis() 
     plt.xlabel(' [µm]')
@@ -510,7 +486,7 @@ def plot():
     plt.colorbar()
         
     plt.figure()
-    plt.imshow(abs(probe), interpolation='none', extent=[0,sizeDiffObjecty*1E6, 0,sizeDiffObjectx*1E6])
+    plt.imshow(np.log10(abs(probe)), interpolation='none', extent=[0,sizeDiffObjecty*1E6, 0,sizeDiffObjectx*1E6])
     plt.xlabel(' [µm]')
     plt.ylabel(' [µm]')
     plt.title('Probe amplitude')
@@ -530,21 +506,23 @@ def plot():
     plt.ylabel(' SSE ')
     plt.title('SSE')
     
+    plot_x = np.linspace(0,diffSet.shape[2]-1,diffSet.shape[2])*xpixel*1E6
     plt.figure()
-    plt.plot(abs(probe.sum(axis=0)), 'b+:', label='data')                                    
-    plt.plot(xCol, gauss(xCol, *poptCol), 'r-', label='fit')
-    plt.plot(xCol, yFit, 'g', label='manual fit')
+    plt.plot(plot_x,abs(probe.sum(axis=0)), 'b+:', label='data')                                    
+    plt.plot(plot_x, gauss(xCol, *poptCol), 'r-', label='fit')
+    plt.plot(plot_x, yFit, 'g', label='manual fit')
     plt.xlabel(' [µm]')
+    plt.ylabel('Intensity')
     plt.title('Probe summed over all columns')
     plt.legend()
     #plt.axis((0,xpixel*diffSet.shape[2]*1E6,0,10))
     
     #my_xticks = xpixel*diffSet.shape[2]*1E6
     #plt.set_xticks( my_xticks )
-    
+    plot_y = np.linspace(0,diffSet.shape[1]-1,diffSet.shape[1])*ypixel*1E6
     plt.figure()
-    plt.plot(abs(probe.sum(axis=1)), 'b+:', label='data')  #sum
-    plt.plot(xRow,gauss(xRow, *poptRow),'r-', label='fit')
+    plt.plot(plot_y, abs(probe.sum(axis=1)), 'b+:', label='data')  #sum
+    plt.plot(plot_y, gauss(xRow, *poptRow),'r-', label='fit')
     plt.legend() 
     #plt.axis([0, sizeDiffObjectx*1E6, 0, sizeDiffObjecty*1E6])    #kontrollera så att x är x och y är y 
     #plt.yscale( )
