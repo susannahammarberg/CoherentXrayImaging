@@ -33,21 +33,21 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
     # define iteration counter for outer loop
     k = 0
     # number of iterations of outer loop
-    n = 0
+    n = 3
     
     # figure for animation
     #fig = plt.figure()
     #plt.gca().invert_yaxis()
     #fig = plt.xlabel(' [µm]')
-    plt.ylabel(' [µm]')
-    plt.xlabel(' [µm]')
-    
-    # Initialize vector for animation data
+#    plt.ylabel(' [µm]')
+#    plt.xlabel(' [µm]')
+#    
+#    # Initialize vector for animation data
    # ims = []
     
     # initialize vector for error calculation
     sse = np.zeros(shape=(n,1))
-   
+    gprimesum = 0
     # Start of ePIE iterations
     while k < n:
         # Start of inner loop: (where you iterate through all probe positions R)
@@ -65,7 +65,7 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
         
             # fft the wave field at position R to Fourier space
             G = (fft.fftshift(fft.fft2(g)))
-           
+
             # make |PSI| confirm with the diffraction pattern from R
             Gprime = diffSet[u]*np.exp(1j*np.angle(G))
             
@@ -85,50 +85,60 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
             # Further constraints:
             ########################
             
-            # constrain object amplitude to 1
-            temp_Oamp = abs(objectFunc)
-            # constrain object amplitude to 1
-            temp_Oamp[temp_Oamp>1] = 1
-            temp = np.angle(objectFunc)
-            objectFunc = temp_Oamp * np.exp(1j* temp)
+#            # constrain object amplitude to 1
+#            temp_Oamp = abs(objectFunc)
+#            # constrain object amplitude to 1
+#            temp_Oamp[temp_Oamp>1] = 1
+#            temp = np.angle(objectFunc)
+#            objectFunc = temp_Oamp * np.exp(1j* temp)
+#            
+#            ##constraint object phase to negative or 0
+#            temp_Ophase = np.angle(objectFunc)
+#            temp_Ophase[temp_Ophase>0] = 0
+#            objectFunc = abs(objectFunc) * np.exp(1j* temp_Ophase)
             
-            ##constraint object phase to negative or 0
-            temp_Ophase = np.angle(objectFunc)
-            temp_Ophase[temp_Ophase>0.1] = 0
-            objectFunc = abs(objectFunc) * np.exp(1j* temp_Ophase)
-            
+            # This is for the PRTF (Absolut men du ska ju bara göra det efter att akka iteration är klara, alltså för k=n
+            # Antingen gör detta eller jämför med stara G (men då skippar man ju en iteration)
+#            if k==n:
+#                gprimesum = gprimesum + fft.fft(fft.fft2(objectFunc*probe))
 
             # anim
 #            im = plt.imshow(abs(objectFunc), animated=True, interpolation='none', extent=[0,6.837770297837617,0,6.825238081022181])
             ## Error estimate (sse)  Nu är alla diff mönster viktade på samma sätt. Inte så bra när de scans som är utanför provet är oviktiga/ger ingen information
-            sse[k] = sse[k] + sum(sum( (diffSet[k]**2 - abs(G)**2) / 65536  ))**2            
-#            plt.ylabel(' [µm]')
-#            plt.title('Object phase')
+            if u == int(nbr_scans/2):
+                save_G_for_sse = abs(G)
+#                sse[k] = sse[k] + sum(sum( )**2 
+            # va är det här det är ju inte rätt:!:
+            #sse[k] = sse[k] + sum(sum( (diffSet[k]**2 - abs(G)**2) / 65536  ))**2            
+
             
    #         ims.append([im])
+        np.disp('G')
+        np.disp(G.shape[0])
           # tittar bara på sista scanet?
-     #   sse[k] = sum(sum( (diffSet[nbr_scans-1]**2 - abs(G)**2 ) / 65536 ))**2  #dela innanför
+        sse[k] = sum(sum( (diffSet[int(nbr_scans/2)]**2 - save_G_for_sse**2 ) / 65536 ))**2  #dela innanför
         k = k+1        
         np.disp(k)                    
-        
-        #SSE[0][k] =  sum(sum(abs(Gprime - diffSet[3] )**2 ))
-
        
     # End of ePIE iterations
     
     # calculate PRTF:
+        
+    PRTF = (gprimesum/nbr_scans) / ( sum(diffSet) / nbr_scans)
+    #te = np.fft.fftfreq(PRTF)
+#    np.disp(PRTF)
     # define exit wave
     psi = np.zeros((nbr_scans,probe.shape[0],probe.shape[1]),dtype=np.complex64)    
     #transmis = np.zeros
     # iterate over all probe positions
-    for lu in range(0,nbr_scans):
-        # define xposition in matrix from motorposition            
-        yposition = int(np.round(positiony[lu]/ypixel))    
-        xposition = int(np.round(positionx[lu]/xpixel))
-                
-        # kolla om detta är rätt
+#    for lu in range(0,nbr_scans):
+#        # define xposition in matrix from motorposition            
+#        yposition = int(np.round(positiony[lu]/ypixel))    
+#        xposition = int(np.round(positionx[lu]/xpixel))
+#                
+#        # kolla om detta är rätt
         #psi[lu] = probe * objectFunc[yposition : yposition + ysize, xposition : xposition + xsize ]
          
 
     ani = 1
-    return (objectFunc, probe, ani, sse, psi)
+    return (objectFunc, probe, ani, sse, psi, PRTF)

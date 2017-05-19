@@ -10,7 +10,7 @@ See s.50 Giewekemeyer thesis för att gå mellan detektorplan och objektplan
 #get_ipython().magic('reset -sf')
 
 import sys   #to collect system path ( to collect function from another directory)
-sys.path.insert(0, 'C:/Users/HonkyT/Desktop/CXI/Shrinkwrap') #to collect 2Dgaussian
+sys.path.insert(0, 'C:/Users/Sanna/Desktop/CXI/Shrinkwrap') #to collect 2Dgaussian
 
 # supports sparse matrices. dont know how they work with np matrises
 #import scipy.sparse as sparse
@@ -31,14 +31,14 @@ plt.close("all")
 
 scan_name_int = 51   # for Wallentin scans
 scan_name_string = '%d' %scan_name_int   
-directory = 'F:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_%s_' %scan_name_string 
+directory = 'D:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_%s_' %scan_name_string 
 
-#directory = 'F:/Nanomax/Vogt_ptycho/scan33/pilatus_scan_33_'
-#directory = 'F:/Nanomax/Vogt_ptycho/scan83/pilatus_scan_83_'
+#directory = 'D:/Nanomax/Vogt_ptycho/scan33/pilatus_scan_33_'
+#directory = 'D:/Nanomax/Vogt_ptycho/scan83/pilatus_scan_83_'
 
-#metadata_directory = 'F:/Nanomax/Vogt_ptycho/scan83/DiWCr4_2.h5' #2 metadatafiler, den första är 1kB
-#metadata_directory = 'F:/Nanomax/Vogt_ptycho/scan33/DiWCr4_1.h5' 
-metadata_directory ='F:/Nanomax/Wallentin/JWX31C_1/JWX31C_1.h5' 
+#metadata_directory = 'D:/Nanomax/Vogt_ptycho/scan83/DiWCr4_2.h5' #2 metadatafiler, den första är 1kB
+#metadata_directory = 'D:/Nanomax/Vogt_ptycho/scan33/DiWCr4_1.h5' 
+metadata_directory ='D:/Nanomax/Wallentin/JWX31C_1/JWX31C_1.h5' 
 
 # Alex masks for Vogt
 #mask_directory = 'scan33_mask.hdf5'
@@ -62,7 +62,8 @@ energy = 10.72#     # ?Wallentin.
 wavelength = (1.23984E-9)/energy
 pixel_det = 172E-6   # Pixel ctr to ctr distance (w) [m] #Pilatus
 z = 4.3
-
+# num. parameter
+epsilon = 2.220446049250313e-16
 
 # create matrix to hold raw diffraction patterns
 diffSet=np.zeros((nbr_scans, 195, 487))   
@@ -75,7 +76,16 @@ for scan_nbr in range(0,nbr_scans):
 
 del scan, data_scan
 
+# gather motor postions
+metadata = h5py.File( metadata_directory)
+dataset_motorpositiony = metadata.get(motorpositions_directory + '/measurement/samy')
+dataset_motorpositionx = metadata.get(motorpositions_directory + '/measurement/samx')
+motorpositiony = np.array(dataset_motorpositiony) 
+motorpositionx = np.array(dataset_motorpositionx) 
+
+del metadata
 # TODO look at differences between diff patterns. remove an average value from each image.
+# to see where you have information
 
 def create_mask():
 ##    probe_mask = np.ones((diffSet.shape[1],diffSet.shape[2]))
@@ -85,11 +95,11 @@ def create_mask():
     
     # remove too high intensity pixels
     j=239
-    probe_mask[111,j:245] = 0
-    probe_mask[112,j:245] = 0
-    probe_mask[113,j:245] = 0 
-    probe_mask[114,j:245] = 0
-    probe_mask[115,j:245] = 0
+    probe_mask[111,j:245] = 0 
+    probe_mask[112,j:245] = 0 
+    probe_mask[113,j:245] = 0  
+    probe_mask[114,j:245] = 0 
+    probe_mask[115,j:245] = 0 
 #    probe_mask[113,242] = 0 #pixel with highest intensity
     return probe_mask
 
@@ -102,16 +112,28 @@ def create_mask():
 probe_mask = create_mask()
 
 # apply mask
+# TODO ? maby after the mask is applied apply a mask that adda a value epsiol to the masked out 0-values. if 0:s are not good for something . tec log10 plotting 
 diffSet = probe_mask * diffSet
 
 del probe_mask
 
-plt.figure()#*pixel_det*1E3 *pixel_det*1E3]
-plt.imshow(np.log10(sum(diffSet)), cmap='gray', interpolation='none', extent=[0,diffSet.shape[2]*pixel_det*1E3, 0, diffSet.shape[1]*pixel_det*1E3])
-plt.title('log10 diffSet sum uncut')
-plt.xlabel(' [mm]')
-plt.ylabel(' [mm]')
-plt.colorbar()
+def plot_rawdata():
+    plt.figure()#*pixel_det*1E3 *pixel_det*1E3]
+    #  OBS log(0) is undefined
+    plt.imshow((sum(diffSet)), cmap='gray', interpolation='none', extent=[0,diffSet.shape[2]*pixel_det*1E3, 0, diffSet.shape[1]*pixel_det*1E3])
+    plt.title('log10 diffSet sum uncut')
+    plt.xlabel(' Extent on detector [mm]')
+    plt.colorbar()
+    plt.show()
+    
+    plt.figure()
+    plt.plot((np.log10(1+sum(diffSet))).ravel())#for hist, bins=100)
+    plt.show()
+    plt.figure()
+    plt.hist((np.log10(1+sum(diffSet))).ravel(),bins=100)#for hist, bins=100)
+    plt.show()    
+plot_rawdata()    
+
 
 # Trim and center the diffraction patterns around max intensity
 # look att the sum of all patterns:
@@ -135,8 +157,7 @@ diffSet = diffSet[:, 31:195, 152:336] # Wallentin51                ##242
 #diffSet = diffSet[:, 31:195, 152:330] # Wallentin38
 #diffSet = diffSet[:, 31:195, 146:336]  # Wallentin17 rätt?
 
-Ny = diffSet.shape[1]        # nbr_pixels of centred and cut diffraction patterns
-Nx = diffSet.shape[2]
+
 
 def transmission_counter():
     index = 0# OK to use same variable name as in other places in code since it is in a function, right?
@@ -193,8 +214,8 @@ def diff_phase_contrast():
     diff_phasex = np.zeros((nbr_scansy, nbr_scansx))
     pol_DPC = np.zeros((nbr_scansy,nbr_scansx))
     pol_DPC_phi = np.zeros((nbr_scansy,nbr_scansx))
-    test_x = np.zeros((nbr_scansy,nbr_scansx))
-    test_y = np.zeros((nbr_scansy,nbr_scansx))
+    rem_bkg_x = np.zeros((nbr_scansy,nbr_scansx))
+    rem_bkg_y = np.zeros((nbr_scansy,nbr_scansx))
         
     for row in range(0, nbr_scansy):
         for col in range(0, nbr_scansx):
@@ -208,101 +229,104 @@ def diff_phase_contrast():
             if index == 0:
                 bkg_x = tempx
                 bkg_y = tempy
-            
-            diff_phasey[row, col] = tempy / sum(sum(diffSet[index]))
-            diff_phasex[row, col] = tempx / sum(sum(diffSet[index]))
-            test_x[row,col] = (tempx ) / sum(sum(diffSet[index])) - bkg_x # 68.25
-            test_y[row,col] = (tempy ) / sum(sum(diffSet[index])) - bkg_y # 62.2
-            # DPC in polar coordinates. r:
-            pol_DPC[row, col] = np.sqrt(( test_y[row, col])**2 + (test_x[col,row] )**2)
-            pol_DPC_phi[row, col] = np.arctan( test_y[row,col] / test_x[row,col]) #sum(sum(diffSet[index])), tempx  / sum(sum(diffSet[index])) )
+            sum_diffSet = sum(sum(diffSet[index]))
+            diff_phasey[row, col] = tempy / sum_diffSet
+            diff_phasex[row, col] = tempx / sum_diffSet
+            rem_bkg_x[row,col] = diff_phasex[row,col] - bkg_x#68.25#bkg_x # 68.25
+            rem_bkg_y[row,col] = diff_phasey[row,col] - bkg_y#62.2#bkg_y # 62.2
+            # DPC in polar coordinates. r then phi:
+            pol_DPC[row, col] = np.sqrt( (rem_bkg_x[row,col])**2 + (rem_bkg_y[row,col])**2)    
+            pol_DPC_phi[row, col] = np.arctan( rem_bkg_y[row,col] / rem_bkg_x[row,col])
             tempy = 0
             tempx = 0
             index = index + 1
-         
+    #for row in range(0, nbr_scansy):
+    #    for col in range(0, nbr_scansx):
+            
+     
+     
     return diff_phasex, diff_phasey, pol_DPC, pol_DPC_phi
 
-dpc_x, dpc_y, pol_DPC, pol_DPC_phi = diff_phase_contrast()
+#pc_x, dpc_y, pol_DPC, pol_DPC_phi = diff_phase_contrast()
 
 dark_field_image = dark_field(dark_field_filter)
-
-# TODO: check if correct
-#def cart2pol(x,y):    
-#    r = np.sqrt(x**2 + y**2)
-#    phi = np.arctan2(y,x)
-#    return(r, phi)
-
-#rCord, phiCord = cart2pol() #[1,2,3], [2,4,6]
-    
 
 def plot_analysis():
     
     plt.figure()
-    plt.imshow(transmission, cmap='gray', interpolation='none', extent=[0,5, 0,5 ])# , extent=[0, ])
+    plt.imshow(transmission, cmap='gray', interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
     plt.title('Scan %d: Transmission'%scan_name_int)
-    plt.xlabel('Nominal motorposition')
+    plt.xlabel('Nominal motorpositions [um]')
     plt.colorbar()
 
     plt.figure()
-    plt.imshow(dark_field_image, cmap='gray', interpolation='none')
+    plt.imshow(dark_field_image, cmap='gray', interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
     plt.title('Scan %d: Dark field image'%scan_name_int)    #%d #%((scan_name))
+    plt.xlabel('Nominal motorpositions [um]')
     plt.colorbar()
     
-    plt.figure()
-    plt.imshow(sum(diffSet), interpolation='none')
-    plt.title('Scan %d:  Sum diffPatterns without dark-field filter '%scan_name_int)
-    plt.colorbar()
-    
-    plt.figure()
-    plt.imshow(dark_field_filter*sum(diffSet), interpolation='none')
-    plt.title('Scan %d: Sum diffPatterns with dark-field filter '%scan_name_int)
-    plt.colorbar()
+#    plt.figure()
+#    plt.imshow(sum(diffSet), interpolation='none',  extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
+#    plt.title('Scan %d:  Sum diffPatterns without dark-field filter '%scan_name_int)
+#    plt.xlabel('Nominal motorpositions [um]')
+#    plt.colorbar()
+#    
+#    plt.figure()
+#    plt.imshow(dark_field_filter*sum(diffSet), interpolation='none', motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
+#    plt.title('Scan %d: Sum diffPatterns with dark-field filter '%scan_name_int)
+#    plt.xlabel('Nominal motorpositions [um]')
+#    plt.colorbar()
             
     plt.figure()
-    plt.imshow(dpc_x, cmap='gray', interpolation='none')
+    plt.imshow(dpc_x, cmap='gray', interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
     plt.title('Scan %d: Differential phase constrast x'%scan_name_int)
+    plt.xlabel('Nominal motorpositions [um]')
     plt.colorbar()
     
     plt.figure()
-    plt.imshow(dpc_y, cmap='gray', interpolation='none')
+    plt.imshow(dpc_y, cmap='gray', interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
     plt.title('Scan %d: Differential phase constrast y'%scan_name_int)
+    plt.xlabel('Nominal motorpositions [um]')
     plt.colorbar()
-    plt.show()
     
     plt.figure()
-    plt.imshow(pol_DPC, cmap='gray', interpolation='none')
+    plt.imshow(pol_DPC, cmap='gray', interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
     plt.title('Scan %d: Differential phase constrast in pol cord r'%scan_name_int)
+    plt.xlabel('Nominal motorpositions [um]')
     plt.colorbar()
 
     plt.figure()    
-    plt.imshow(pol_DPC_phi, cmap = 'gray', interpolation='none')
+    plt.imshow(pol_DPC_phi, cmap = 'gray', interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
     plt.title('Scan %d: DPC_phi'%scan_name_int)
+    plt.xlabel('Nominal motorpositions [um]')
     plt.colorbar()  
 
-plot_analysis()
+#plot_analysis()
 
 # TODO: write function for padding of diff Patterns med storled som inparameterar Nx Ny
 def pad_diffPatterns(Nx,Ny): #Kan dessa tex heta Nx och Ny när det finns glabala parameterar som heter det?
+    padded_diffPatterns = np.zeros((nbr_scans, Ny,Nx))
+    x = (Nx - diffSet.shape[2]) / 2
+    y = (Ny - diffSet.shape[1]) / 2 
+    for i in range(0, nbr_scans):
+        padded_diffPatterns[i, y: y + diffSet.shape[1], x: x+ diffSet.shape[2]] = diffSet[i]
+    
     np.disp(Nx)
-    return 0
+    return padded_diffPatterns
 
-pad_diffPatterns(4,5)
-    
-    
+diffSet = pad_diffPatterns(350,350)
 
+plt.figure()
+plt.imshow(np.log10(sum(diffSet)))
+plt.title('Zero-padding of diffraction patterns')
+
+# Sizes of centred cut and padded diffraction patterns
+Ny = diffSet.shape[1]        # nbr_pixels of centred and cut diffraction patterns
+Nx = diffSet.shape[2]
 
 # factor for defining pixel sizes in object plane
 yfactor = (1/Ny)*z*wavelength
 xfactor = (1/Nx)*z*wavelength
-
-# gather motor postions
-metadata = h5py.File( metadata_directory)
-dataset_motorpositiony = metadata.get(motorpositions_directory + '/measurement/samy')
-dataset_motorpositionx = metadata.get(motorpositions_directory + '/measurement/samx')
-motorpositiony = np.array(dataset_motorpositiony) 
-motorpositionx = np.array(dataset_motorpositionx) 
-
-del metadata
  
 # calculate how long each step is in x and y OBS kan också vara minus
 stepSizex = np.zeros((nbr_scansx,1))
@@ -385,15 +409,23 @@ positionx = (motorpositionx - motorpositionx.min() ) *1E-6
 #plt.colorbar()
 
 # run ePIE
-objectFunc, probe, ani, sse, psi = ePIE(diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx, nbr_scans)
+objectFunc, probe, ani, sse, psi, PRTF = ePIE(diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx, nbr_scans)
 
+plt.figure()
+plt.imshow(np.log10(abs(fft.fftshift(fft.fft2(objectFunc)))))
 #TODO someting.. PRTF?
 ### make ePIE function return psi (exit wave) for every position of probe
 # sum over all positions?
-#psi = sum(psi)
+#psi = sum(objectFunc*probe)
 #fft1 = fft.fft(psi)
+#plt.title('')
+#               
 #plt.figure()
-#plt.plot(fft1)
+#plt.imshow(PRTF)
+#
+#plt.plot(fft1)#for hist, bins=100)
+#plt.show()
+#  
 
 # function creates a gaussian  with amplitude A, center of function c, and sigma
 def gauss(x, A, c, sigma):
@@ -461,42 +493,42 @@ plt.show() #show animation
 def plot():
 
     plt.figure()
-    plt.imshow(np.log10(sum(diffSet)), interpolation='none', extent=[0,diffSet.shape[1]*pixel_det*1E3, 0, diffSet.shape[2]*pixel_det*1E3] )
+    plt.imshow(np.log10(sum(diffSet)+1), interpolation='none', extent=[0,diffSet.shape[1]*pixel_det*1E3, 0, diffSet.shape[2]*pixel_det*1E3] )
     plt.xlabel(' y [mm]')
     plt.ylabel(' x [mm]')
-    plt.title('log10 of all diffraction patterns summed')   
+    plt.title('Scan %d: log10 of all diffraction patterns summed'%scan_name_int)   
     plt.colorbar()
     
     
     #def plott():  
     plt.figure()     #, origin="lower"                         # sets the scale on axes. 
-    plt.imshow( np.angle(objectFunc), interpolation='none', extent=[0,objectFuncNy*ypixel*1E6, 0,objectFuncNx*xpixel*1E6])
+    plt.imshow( np.angle(objectFunc), interpolation='none', extent=[0,objectFuncNx*xpixel*1E6, 0,objectFuncNy*ypixel*1E6])
     #plt.gca().invert_yaxis() 
     plt.xlabel(' [µm]')
     plt.ylabel(' [µm]')
-    plt.title('Object phase')
+    plt.title('Scan %d: Object phase'%scan_name_int)
     #plt.clim(-np.pi,np.pi)
     plt.colorbar()
        
     plt.figure()                                                            # horisontalt vertikalt. xpixel * size(objectfunc[xled])
-    plt.imshow(abs(objectFunc), cmap='gray', interpolation='none', extent=[0,objectFuncNy*ypixel*1E6, 0,objectFuncNx*xpixel*1E6])
+    plt.imshow(abs(objectFunc), cmap='gray', interpolation='none', extent=[0,objectFuncNx*xpixel*1E6, 0, objectFuncNy*ypixel*1E6])
     plt.xlabel(' [µm]')
     plt.ylabel(' [µm]')
-    plt.title('Object amplitude')
+    plt.title('Scan %d: Object amplitude'%scan_name_int)
     plt.colorbar()
         
     plt.figure()
-    plt.imshow(np.log10(abs(probe)), interpolation='none', extent=[0,sizeDiffObjecty*1E6, 0,sizeDiffObjectx*1E6])
+    plt.imshow(abs(probe), interpolation='none', extent=[0,sizeDiffObjectx*1E6, 0,sizeDiffObjecty*1E6])
     plt.xlabel(' [µm]')
     plt.ylabel(' [µm]')
-    plt.title('Probe amplitude')
+    plt.title('Scan %d: Probe amplitude'%scan_name_int)
     plt.colorbar()
     
     plt.figure()                                                            # horisontalt vertikalt
-    plt.imshow(np.angle(probe), interpolation='none', extent=[0,sizeDiffObjecty*1E6, 0,sizeDiffObjectx*1E6])
+    plt.imshow(np.angle(probe), interpolation='none', extent=[ 0,sizeDiffObjectx*1E6, 0,sizeDiffObjecty*1E6])
     plt.xlabel(' [µm]')
     plt.ylabel(' [µm]')
-    plt.title('Probe phase')
+    plt.title('Scan %d: Probe phase'%scan_name_int)
     #plt.clim(-np.pi,np.pi)
     plt.colorbar()
     
@@ -504,16 +536,16 @@ def plot():
     plt.plot(sse)
     plt.xlabel(' iterations ')
     plt.ylabel(' SSE ')
-    plt.title('SSE')
+    plt.title('Scan %d: SSE looking at central position only'%scan_name_int)
     
     plot_x = np.linspace(0,diffSet.shape[2]-1,diffSet.shape[2])*xpixel*1E6
     plt.figure()
     plt.plot(plot_x,abs(probe.sum(axis=0)), 'b+:', label='data')                                    
     plt.plot(plot_x, gauss(xCol, *poptCol), 'r-', label='fit')
-    plt.plot(plot_x, yFit, 'g', label='manual fit')
+    #plt.plot(plot_x, yFit, 'g', label='manual fit')
     plt.xlabel(' [µm]')
     plt.ylabel('Intensity')
-    plt.title('Probe summed over all columns')
+    plt.title('Scan %d: Probe summ_all_columns. FWHM: %d'%(scan_name_int,FWHM_col))
     plt.legend()
     #plt.axis((0,xpixel*diffSet.shape[2]*1E6,0,10))
     
@@ -528,7 +560,7 @@ def plot():
     #plt.yscale( )
     #plt.axis.set_xscale(sizeDiffObjectx*1E6) 
     plt.xlabel(' [µm]')
-    plt.title('Probe summed over all rows')
+    plt.title('Probe summ_all_columns. FWHM: %d'%(scan_name_int,FWHM_row))
 
     return 0
-#plot()
+plot()
