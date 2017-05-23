@@ -25,7 +25,7 @@ from math import ceil
 from scipy import misc # to imoport image
 from scipy.optimize import curve_fit as curve_fit
 #from sys import getsizeof   #se hur mkt minne variabler tar upp 
-#import matplotlib.animation as animation
+import matplotlib.animation as animation
 
 plt.close("all")
 
@@ -45,10 +45,8 @@ metadata_directory ='D:/Nanomax/Wallentin/JWX31C_1/JWX31C_1.h5'
 #mask_directory = 'scan83_mask.hdf5'
 
 motorpositions_directory = '/entry%s' %scan_name_string           #J.W  
-
 #motorpositions_directory = '/entry83'  
 #motorpositions_directory = '/entry33'  
-
 
 nbr_scans = 961#961#441  #221 scan17    #441     # 441 Scan49,38 J.W    #961 scan 33
 nbr_scansy = 31    #21#for scan49 J.W    #31 för scan 33
@@ -132,8 +130,7 @@ def plot_rawdata():
     plt.figure()
     plt.hist((np.log10(1+sum(diffSet))).ravel(),bins=100)#for hist, bins=100)
     plt.show()    
-plot_rawdata()    
-
+#plot_rawdata()    
 
 # Trim and center the diffraction patterns around max intensity
 # look att the sum of all patterns:
@@ -156,8 +153,6 @@ plot_rawdata()
 diffSet = diffSet[:, 31:195, 152:336] # Wallentin51                ##242
 #diffSet = diffSet[:, 31:195, 152:330] # Wallentin38
 #diffSet = diffSet[:, 31:195, 146:336]  # Wallentin17 rätt?
-
-
 
 def transmission_counter():
     index = 0# OK to use same variable name as in other places in code since it is in a function, right?
@@ -189,8 +184,8 @@ def circular_filter(ySize, xSize, outer_radius, inner_radius):
     
     return outer_circle - inner_circle
 
-outer_radius = 35
-inner_radius = 16
+outer_radius = 40   #35
+inner_radius = 12     # 0 till 8 gör ingenting
 dark_field_filter = circular_filter(diffSet.shape[1],diffSet.shape[2],outer_radius,inner_radius)
 
 def dark_field(dark_field_filter):
@@ -205,6 +200,7 @@ def dark_field(dark_field_filter):
             index = index+1
             
     return dark_field
+dark_field_image = dark_field(dark_field_filter)
 
 def diff_phase_contrast():
     tempy = 0
@@ -212,7 +208,7 @@ def diff_phase_contrast():
     index = 0
     diff_phasey = np.zeros((nbr_scansy, nbr_scansx))
     diff_phasex = np.zeros((nbr_scansy, nbr_scansx))
-    pol_DPC = np.zeros((nbr_scansy,nbr_scansx))
+    pol_DPC_r = np.zeros((nbr_scansy,nbr_scansx))
     pol_DPC_phi = np.zeros((nbr_scansy,nbr_scansx))
     rem_bkg_x = np.zeros((nbr_scansy,nbr_scansx))
     rem_bkg_y = np.zeros((nbr_scansy,nbr_scansx))
@@ -226,30 +222,26 @@ def diff_phase_contrast():
                     tempx = tempx + (n-nbr_scansx/2) * diffSet[index, m, n]
             # spara värdet på den första pixeln:
             # detta känns onödigt krävande för då måste if satsen kollas varje gång fast jag vet vilket k jag vill ha
-            if index == 0:
-                bkg_x = tempx
-                bkg_y = tempy
+#            if index == 0:
+#                bkg_x = tempx
+#                bkg_y = tempy
             sum_diffSet = sum(sum(diffSet[index]))
             diff_phasey[row, col] = tempy / sum_diffSet
             diff_phasex[row, col] = tempx / sum_diffSet
-            rem_bkg_x[row,col] = diff_phasex[row,col] - bkg_x#68.25#bkg_x # 68.25
-            rem_bkg_y[row,col] = diff_phasey[row,col] - bkg_y#62.2#bkg_y # 62.2
+            rem_bkg_x[row,col] = diff_phasex[row,col] - 68.25#bkg_x # 68.25
+            rem_bkg_y[row,col] = diff_phasey[row,col] - 62.2#bkg_y # 62.2
             # DPC in polar coordinates. r then phi:
-            pol_DPC[row, col] = np.sqrt( (rem_bkg_x[row,col])**2 + (rem_bkg_y[row,col])**2)    
+            pol_DPC_r[row, col] = np.sqrt( (rem_bkg_x[row,col])**2 + (rem_bkg_y[row,col])**2)    
             pol_DPC_phi[row, col] = np.arctan( rem_bkg_y[row,col] / rem_bkg_x[row,col])
             tempy = 0
             tempx = 0
             index = index + 1
     #for row in range(0, nbr_scansy):
     #    for col in range(0, nbr_scansx):
-            
-     
-     
-    return diff_phasex, diff_phasey, pol_DPC, pol_DPC_phi
+                
+    return diff_phasex, diff_phasey, pol_DPC_r, pol_DPC_phi
 
-#pc_x, dpc_y, pol_DPC, pol_DPC_phi = diff_phase_contrast()
-
-dark_field_image = dark_field(dark_field_filter)
+dpc_x, dpc_y, pol_DPC_r, pol_DPC_phi = diff_phase_contrast()
 
 def plot_analysis():
     
@@ -271,11 +263,11 @@ def plot_analysis():
 #    plt.xlabel('Nominal motorpositions [um]')
 #    plt.colorbar()
 #    
-#    plt.figure()
-#    plt.imshow(dark_field_filter*sum(diffSet), interpolation='none', motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
-#    plt.title('Scan %d: Sum diffPatterns with dark-field filter '%scan_name_int)
-#    plt.xlabel('Nominal motorpositions [um]')
-#    plt.colorbar()
+    plt.figure()
+    plt.imshow(dark_field_filter*sum(diffSet), interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
+    plt.title('Scan %d: Sum diffPatterns with dark-field filter '%scan_name_int)
+    plt.xlabel('Nominal motorpositions [um]')
+    plt.colorbar()
             
     plt.figure()
     plt.imshow(dpc_x, cmap='gray', interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
@@ -290,7 +282,7 @@ def plot_analysis():
     plt.colorbar()
     
     plt.figure()
-    plt.imshow(pol_DPC, cmap='gray', interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
+    plt.imshow(pol_DPC_r, cmap='gray', interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
     plt.title('Scan %d: Differential phase constrast in pol cord r'%scan_name_int)
     plt.xlabel('Nominal motorpositions [um]')
     plt.colorbar()
@@ -303,9 +295,8 @@ def plot_analysis():
 
 #plot_analysis()
 
-# TODO: write function for padding of diff Patterns med storled som inparameterar Nx Ny
 def pad_diffPatterns(Nx,Ny): #Kan dessa tex heta Nx och Ny när det finns glabala parameterar som heter det?
-    padded_diffPatterns = np.zeros((nbr_scans, Ny,Nx))
+    padded_diffPatterns = np.zeros((nbr_scans, Ny, Nx))
     x = (Nx - diffSet.shape[2]) / 2
     y = (Ny - diffSet.shape[1]) / 2 
     for i in range(0, nbr_scans):
@@ -314,14 +305,10 @@ def pad_diffPatterns(Nx,Ny): #Kan dessa tex heta Nx och Ny när det finns glabal
     np.disp(Nx)
     return padded_diffPatterns
 
-diffSet = pad_diffPatterns(350,350)
-
-plt.figure()
-plt.imshow(np.log10(sum(diffSet)))
-plt.title('Zero-padding of diffraction patterns')
+#diffSet = pad_diffPatterns(350,350)#   350
 
 # Sizes of centred cut and padded diffraction patterns
-Ny = diffSet.shape[1]        # nbr_pixels of centred and cut diffraction patterns
+Ny = diffSet.shape[1]      
 Nx = diffSet.shape[2]
 
 # factor for defining pixel sizes in object plane
@@ -336,26 +323,12 @@ for i in range(0,nbr_scansx):   #gör 2 loops for diffrent nbr of scans in y and
     stepSizey[i] = (motorpositiony[i+1] - motorpositiony[i]) * 1E-6
 
 # probe construction
-sigmay = 1 #2 14.1# 14.1               # initial value of gaussian height
-sigmax = 1 #2                    # initial value of gaussian width
+sigmay = 2 #2 14.1# 14.1               # initial value of gaussian height
+sigmax = 2 #2                    # initial value of gaussian width
 probe = create2Dgaussian( sigmay, sigmax, diffSet.shape[1], diffSet.shape[2])
 
-phase = np.pi/4 * circular_filter(diffSet.shape[1],diffSet.shape[2],1,0)
+phase = np.pi/4 * circular_filter(diffSet.shape[1],diffSet.shape[2],2,0)
 
-#phase = np.zeros((diffSet.shape[1],diffSet.shape[2]))
- ##initial guess for probe (square with amplitude 1 everywhere):
-#probeInnerSize = 12#with ones
-#probe = np.zeros((diffSet.shape[1],diffSet.shape[2]), dtype=np.complex64)
-#probe[116:141, 116:141] = 1  #np.ones(shape=(20, 20)). OK
-## kolla om detta blev rätt
-#probe[floor(diffSet.shape[1]/2 - probeInnerSize/2) :floor(diffSet.shape[1]/2 - probeInnerSize/2)+probeInnerSize,  floor(diffSet.shape[2]/2 - probeInnerSize/2):floor(diffSet.shape[2]/2 - probeInnerSize/2)+probeInnerSize] = 1
-
-#probeInnerSize = 12#with ones
-#phase = np.zeros((diffSet.shape[1],diffSet.shape[2]), dtype=np.complex64)
-#phase[floor(diffSet.shape[1]/2 - probeInnerSize/2) :floor(diffSet.shape[1]/2 - probeInnerSize/2)+probeInnerSize,  floor(diffSet.shape[2]/2 - probeInnerSize/2):floor(diffSet.shape[2]/2 - probeInnerSize/2)+probeInnerSize] = np.pi/2
-
-## Create square phase 
-#phase = np.pi * np.ones((diffSet.shape[1],diffSet.shape[2]), dtype=np.complex64)
 # create complex probe
 probe = probe * np.exp(1j*phase)
 
@@ -394,25 +367,27 @@ positionx = (motorpositionx - motorpositionx.min() ) *1E-6
 ## mirror diffraction patterns
 #diffSet = np.fliplr(diffSet)
 #
-#plt.figure()                                #                        x                  y
-#plt.imshow(abs(probe), cmap='gray', interpolation='none', extent=[0,sizeDiffObjecty*1E6,0,sizeDiffObjecty*1E6])
-#plt.xlabel(' [µm]')
-#plt.ylabel(' [µm]')
-#plt.title('Initial probe amplitude')
-#plt.colorbar()
-#
+plt.figure()                                #                        x                  y
+plt.imshow(abs(probe), cmap='gray', interpolation='none', extent=[0,sizeDiffObjectx*1E6,0,sizeDiffObjecty*1E6])
+plt.xlabel(' [µm]')
+plt.ylabel(' [µm]')
+plt.title('Initial probe amplitude')
+plt.colorbar()
+
+plt.figure()                               
+plt.imshow(np.angle(probe), cmap='gray', interpolation='none', extent=[0,sizeDiffObjectx*1E6,0,sizeDiffObjecty*1E6])
+plt.xlabel(' [µm]')
+plt.ylabel(' [µm]')
+plt.title('Initial probe phase')
+plt.colorbar()
+
+# run ePIE for k nbr of iterations
+k = 10
+objectFunc, probe, ani, sse, psi, PRTF = ePIE(k, diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx, nbr_scans)
+plt.show() #show animation
 #plt.figure()
-#plt.imshow(np.angle(probe), cmap='gray', interpolation='none', extent=[0,sizeDiffObjecty*1E6,0,sizeDiffObjecty*1E6])
-#plt.xlabel(' [µm]')
-#plt.ylabel(' [µm]')
-#plt.title('Initial probe phase')
-#plt.colorbar()
+#plt.imshow(np.log10(abs(fft.fftshift(fft.fft2(objectFunc)))))
 
-# run ePIE
-objectFunc, probe, ani, sse, psi, PRTF = ePIE(diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx, nbr_scans)
-
-plt.figure()
-plt.imshow(np.log10(abs(fft.fftshift(fft.fft2(objectFunc)))))
 #TODO someting.. PRTF?
 ### make ePIE function return psi (exit wave) for every position of probe
 # sum over all positions?
@@ -425,49 +400,45 @@ plt.imshow(np.log10(abs(fft.fftshift(fft.fft2(objectFunc)))))
 #
 #plt.plot(fft1)#for hist, bins=100)
 #plt.show()
-#  
 
 # function creates a gaussian  with amplitude A, center of function c, and sigma
 def gauss(x, A, c, sigma):
     return A*np.exp(-(x-c)**2/(2*sigma**2))
 
-xCol = np.linspace(0,probe.shape[1]-1,probe.shape[1])
-xRow = np.linspace(0,probe.shape[0]-1,probe.shape[0])     #fler punkter?
+xCol = np.linspace(0,probe.shape[1]-1,probe.shape[1])*xpixel*1E6
+xRow = np.linspace(0,probe.shape[0]-1,probe.shape[0])*ypixel*1E6     #fler punkter?
 yFit = gauss(xCol,152,95,2)     #sumcolumns
 
 yCol_data = abs(probe.sum(axis=0))
 yRow_data = abs(probe.sum(axis=1))
-# fit probe columns to gaussian #p0 initial guesses for fitting (optional)
-poptCol, puCol = curve_fit(gauss, xCol, yCol_data, p0=[yCol_data.max(),95,1])
+# fit probe columns to gaussian #p0 initial guesses for fitting (optional ((else == 1 1 1))
+poptCol, puCol = curve_fit(gauss, xCol, yCol_data, p0=[yCol_data.max(),1,1])
 # fit probe rows to gaussian
-poptRow, puRow = curve_fit(gauss, xRow, yRow_data )
+poptRow, puRow = curve_fit(gauss, xRow, yRow_data , p0=[yRow_data.max(),1,1]) 
 
-FWHM_col = 4.29193 * poptCol[2]      #(=2 * (sqrt(2*ln(10) ) )))
-FWHM_row = 4.29193 * poptRow[2]
-np.disp(FWHM_col)
-np.disp(FWHM_row)
+FWHM_col = 2.35482 * poptCol[2]      #(=2 * (sqrt(2*ln(2) ) )*sigma))
+FWHM_row = 2.35482 * poptRow[2]
 
-#2d gaussian fit
-def gauss2d(xytuple, A, cx, cy, sigmax, sigmay):
-    (x,y) = xytuple    # hur funkar detta?
-    g = A*np.exp(- ((x-cx)**2 /(2*sigmax**2) + (y-cy)**2 /(2*sigmay**2)   ))
-    return g.ravel()
-
-# Create x and y indices
-x = np.linspace(0,probe.shape[1]-1,probe.shape[1])
-y = np.linspace(0,probe.shape[0]-1,probe.shape[0])
-x, y = np.meshgrid(x, y)
-xytuple = (x,y);
-y2sgauss = gauss2d(xytuple, abs(probe).max(), 82, 95, 1, 1 )
-
-data2d = abs(probe)
-popt2d, pu2 = curve_fit(gauss2d, xytuple, data2d.ravel(), p0=[data2d.max(), 92, 81, 1, 1] )
+#TODO: 2d gaussian fit
+#def gauss2d(xytuple, A, cx, cy, sigmax, sigmay):
+#    (x,y) = xytuple    # hur funkar detta?
+#    g = A*np.exp(- ((x-cx)**2 /(2*sigmax**2) + (y-cy)**2 /(2*sigmay**2)   ))
+#    return g.ravel()
 #
+## Create x and y indices
+#x = np.linspace(0,probe.shape[1]-1,probe.shape[1])*xpixel*1E6
+#y = np.linspace(0,probe.shape[0]-1,probe.shape[0])*ypixel*1E6??
+#x, y = np.meshgrid(x, y)
+#xytuple = (x,y);
+#y2sgauss = gauss2d(xytuple, abs(probe).max(), 82, 95, 1, 1 )
+#
+#data2d = abs(probe)
+#popt2d, pu2 = curve_fit(gauss2d, xytuple, data2d.ravel(), p0=[data2d.max(), 92, 81, 1, 1] )
+##
 #plt.figure()
 #plt.imshow(data2d)
 #plt.contour(gauss2d(xytuple,  *popt2d ).reshape(probe.shape[0], probe.shape[1]))
 #plt.title('2d probe with Gaussian fit')
-
 
 #plt.figure()
 #plt.plot(abs(probe.sum(axis=0)), 'b+:', label='data')                                    
@@ -477,10 +448,7 @@ popt2d, pu2 = curve_fit(gauss2d, xytuple, data2d.ravel(), p0=[data2d.max(), 92, 
 #plt.title('Probe summed over all columns')
 #plt.legend()
 
-
 ##############################PLOTTING################
-plt.show() #show animation
-
 
 # Make a centred line in x and y direction on the diffraction patterns
 #diffSet[:,:,int(diffSet.shape[2]/2)] = 1 
@@ -491,24 +459,24 @@ plt.show() #show animation
 #liney = np.linspace(0,diffSet.shape[1],diffSet.shape[1]+1)
 #lineyy = diffSet.shape[1]/2 * np.ones((linex.shape))
 def plot():
-
+     # colormap gray or jet
     plt.figure()
-    plt.imshow(np.log10(sum(diffSet)+1), interpolation='none', extent=[0,diffSet.shape[1]*pixel_det*1E3, 0, diffSet.shape[2]*pixel_det*1E3] )
+    plt.imshow(np.log10(sum(diffSet)+1), cmap='gray', interpolation='none', extent=[0,diffSet.shape[1]*pixel_det*1E3, 0, diffSet.shape[2]*pixel_det*1E3] )
     plt.xlabel(' y [mm]')
     plt.ylabel(' x [mm]')
     plt.title('Scan %d: log10 of all diffraction patterns summed'%scan_name_int)   
     plt.colorbar()
-    
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_SumdiffPatt__k%d'%(scan_name_int, k))
     
     #def plott():  
     plt.figure()     #, origin="lower"                         # sets the scale on axes. 
-    plt.imshow( np.angle(objectFunc), interpolation='none', extent=[0,objectFuncNx*xpixel*1E6, 0,objectFuncNy*ypixel*1E6])
+    plt.imshow( np.angle(objectFunc), cmap='gray', interpolation='none', extent=[0,objectFuncNx*xpixel*1E6, 0,objectFuncNy*ypixel*1E6])
     #plt.gca().invert_yaxis() 
     plt.xlabel(' [µm]')
     plt.ylabel(' [µm]')
     plt.title('Scan %d: Object phase'%scan_name_int)
-    #plt.clim(-np.pi,np.pi)
     plt.colorbar()
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Ophase_k%d'%(scan_name_int, k))
        
     plt.figure()                                                            # horisontalt vertikalt. xpixel * size(objectfunc[xled])
     plt.imshow(abs(objectFunc), cmap='gray', interpolation='none', extent=[0,objectFuncNx*xpixel*1E6, 0, objectFuncNy*ypixel*1E6])
@@ -516,19 +484,22 @@ def plot():
     plt.ylabel(' [µm]')
     plt.title('Scan %d: Object amplitude'%scan_name_int)
     plt.colorbar()
-        
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Oamp_k%d'%(scan_name_int, k))
+    
     plt.figure()
-    plt.imshow(abs(probe), interpolation='none', extent=[0,sizeDiffObjectx*1E6, 0,sizeDiffObjecty*1E6])
+    plt.imshow(abs(probe), cmap='gray', interpolation='none', extent=[0,sizeDiffObjectx*1E6, 0,sizeDiffObjecty*1E6])
     plt.xlabel(' [µm]')
     plt.ylabel(' [µm]')
     plt.title('Scan %d: Probe amplitude'%scan_name_int)
     plt.colorbar()
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Pamp_k%d'%(scan_name_int, k))
     
     plt.figure()                                                            # horisontalt vertikalt
-    plt.imshow(np.angle(probe), interpolation='none', extent=[ 0,sizeDiffObjectx*1E6, 0,sizeDiffObjecty*1E6])
+    plt.imshow(np.angle(probe), cmap='gray', interpolation='none', extent=[ 0,sizeDiffObjectx*1E6, 0,sizeDiffObjecty*1E6])
     plt.xlabel(' [µm]')
     plt.ylabel(' [µm]')
     plt.title('Scan %d: Probe phase'%scan_name_int)
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Pphase_k%d'%(scan_name_int, k))
     #plt.clim(-np.pi,np.pi)
     plt.colorbar()
     
@@ -537,6 +508,7 @@ def plot():
     plt.xlabel(' iterations ')
     plt.ylabel(' SSE ')
     plt.title('Scan %d: SSE looking at central position only'%scan_name_int)
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_SSE_k%d'%(scan_name_int, k))
     
     plot_x = np.linspace(0,diffSet.shape[2]-1,diffSet.shape[2])*xpixel*1E6
     plt.figure()
@@ -545,8 +517,9 @@ def plot():
     #plt.plot(plot_x, yFit, 'g', label='manual fit')
     plt.xlabel(' [µm]')
     plt.ylabel('Intensity')
-    plt.title('Scan %d: Probe summ_all_columns. FWHM: %d'%(scan_name_int,FWHM_col))
+    plt.title('Scan %d: Probe summ_all_columns. FWHM: %f µm'%(scan_name_int,FWHM_col))
     plt.legend()
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_probe_row_lineplot_k%d'%(scan_name_int, k))
     #plt.axis((0,xpixel*diffSet.shape[2]*1E6,0,10))
     
     #my_xticks = xpixel*diffSet.shape[2]*1E6
@@ -560,7 +533,31 @@ def plot():
     #plt.yscale( )
     #plt.axis.set_xscale(sizeDiffObjectx*1E6) 
     plt.xlabel(' [µm]')
-    plt.title('Probe summ_all_columns. FWHM: %d'%(scan_name_int,FWHM_row))
-
+    plt.title('Scan %d: Probe summ_all_columns. FWHM: %f µm'%(scan_name_int,FWHM_row))
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_probe_col_lineplot_k%d'%(scan_name_int, k))
     return 0
 plot()
+
+def normalize_0_1(array):
+    array = (array - array.min()) / (array.max() - array.min())
+    return array
+
+plt.figure()
+x_line = np.linspace(motorpositionx[0], motorpositionx[-1], nbr_scansx)
+row_line_nbr = 15
+plt.plot(x_line, normalize_0_1(pol_DPC_r[row_line_nbr]),'r+-' ,label='pol_DPC_r')
+plt.plot(x_line, normalize_0_1(dark_field_image[row_line_nbr,:]) ,'y+-', label='DF')  # detta är horisontella profilen   
+plt.title('Scan %d: Scaled line profiles'%scan_name_int)
+plt.xlabel('Nominal motorpositions [um]')
+plt.legend()
+plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_DF_lineplot_x_k%d'%(scan_name_int, k))
+
+plt.figure()
+y_line = np.linspace(motorpositiony[0], motorpositiony[-1], nbr_scansy)
+col_line_nbr = 15
+plt.plot(normalize_0_1(pol_DPC_r[:, col_line_nbr]), y_line ,'r+-', label='pol_DPC_r')
+plt.plot( normalize_0_1(dark_field_image[:, col_line_nbr]), y_line, 'y+-', label='DF')  # detta är horisontella profilen   
+plt.title('Scan %d: Scaled line profiles'%scan_name_int)
+plt.xlabel('Nominal motorpositions [um]')
+plt.legend()
+plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_DF_lineplot_y_k%d'%(scan_name_int, k))

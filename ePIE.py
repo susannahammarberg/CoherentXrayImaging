@@ -2,7 +2,7 @@
 """
 Created on Wed Mar  8 11:48:03 2017
 
-@author: Sanna
+@author: Susanna Hammarberg
 """
 
 import numpy as np
@@ -12,7 +12,7 @@ from numpy import fft
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx, nbr_scans ): 
+def ePIE( n, diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx, nbr_scans ): 
 
     # size of probe and diffraction patterns
     ysize = diffSet.shape[1]
@@ -25,25 +25,22 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
     
     objectIlluminated = np.ones(shape=(ysize, xsize),dtype=np.complex64)
     # allocating 
-    g = np.zeros((625, ysize, xsize),dtype=np.complex64)
-    gprime = np.zeros((625, ysize, xsize),dtype=np.complex64)
-    G = np.zeros((625, ysize, xsize),dtype=np.complex64)
-    Gprime = np.zeros((625, ysize, xsize),dtype=np.complex64)   
+    g = np.zeros((ysize, xsize),dtype=np.complex64)
+    gprime = np.zeros(( ysize, xsize),dtype=np.complex64)
+    G = np.zeros((ysize, xsize),dtype=np.complex64)
+    Gprime = np.zeros((ysize, xsize),dtype=np.complex64)   
     
     # define iteration counter for outer loop
     k = 0
-    # number of iterations of outer loop
-    n = 3
     
-    # figure for animation
-    #fig = plt.figure()
-    #plt.gca().invert_yaxis()
-    #fig = plt.xlabel(' [µm]')
+    #figure for animation
+#    fig = plt.figure()
+#    plt.gca().invert_yaxis()
 #    plt.ylabel(' [µm]')
 #    plt.xlabel(' [µm]')
-#    
-#    # Initialize vector for animation data
-   # ims = []
+    
+    # Initialize vector for animation data
+#    ims = []
     
     # initialize vector for error calculation
     sse = np.zeros(shape=(n,1))
@@ -65,6 +62,8 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
         
             # fft the wave field at position R to Fourier space
             G = (fft.fftshift(fft.fft2(g)))
+#            np.disp('G shape:')
+#            print(G.shape)
 
             # make |PSI| confirm with the diffraction pattern from R
             Gprime = diffSet[u]*np.exp(1j*np.angle(G))
@@ -78,24 +77,23 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
             #update probe function
 #            if k%4==0:
 #               probe = probe + 1 *(gprime-g) * np.conj(objectIlluminated)/ (np.max(abs(objectIlluminated))**2)
-            beta = 0.5
+            beta = 1
             probe = probe + beta *(gprime-g) * np.conj(objectIlluminated)/ (np.max(abs(objectIlluminated))**2)
             
             ########################            
             # Further constraints:
             ########################
             
-#            # constrain object amplitude to 1
-#            temp_Oamp = abs(objectFunc)
-#            # constrain object amplitude to 1
-#            temp_Oamp[temp_Oamp>1] = 1
-#            temp = np.angle(objectFunc)
-#            objectFunc = temp_Oamp * np.exp(1j* temp)
-#            
-#            ##constraint object phase to negative or 0
-#            temp_Ophase = np.angle(objectFunc)
-#            temp_Ophase[temp_Ophase>0] = 0
-#            objectFunc = abs(objectFunc) * np.exp(1j* temp_Ophase)
+            # constrain object amplitude to 1
+            temp_Oamp = abs(objectFunc)
+            temp_Oamp[temp_Oamp>1] = 1
+            temp = np.angle(objectFunc)
+            objectFunc = temp_Oamp * np.exp(1j* temp)
+            
+            ##constraint object phase to negative or 0
+            temp_Ophase = np.angle(objectFunc)
+            temp_Ophase[temp_Ophase>0] = 0
+            objectFunc = abs(objectFunc) * np.exp(1j* temp_Ophase)
             
             # This is for the PRTF (Absolut men du ska ju bara göra det efter att akka iteration är klara, alltså för k=n
             # Antingen gör detta eller jämför med stara G (men då skippar man ju en iteration)
@@ -112,10 +110,8 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
             #sse[k] = sse[k] + sum(sum( (diffSet[k]**2 - abs(G)**2) / 65536  ))**2            
 
             
-   #         ims.append([im])
-        np.disp('G')
-        np.disp(G.shape[0])
-          # tittar bara på sista scanet?
+#        ims.append([im])
+        # tittar bara på sista scanet?
         sse[k] = sum(sum( (diffSet[int(nbr_scans/2)]**2 - save_G_for_sse**2 ) / 65536 ))**2  #dela innanför
         k = k+1        
         np.disp(k)                    
@@ -139,6 +135,6 @@ def ePIE( diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony,
 #        # kolla om detta är rätt
         #psi[lu] = probe * objectFunc[yposition : yposition + ysize, xposition : xposition + xsize ]
          
-
+ #  ani = animation.ArtistAnimation(fig, ims, interval=150, blit=True,repeat_delay=200)
     ani = 1
     return (objectFunc, probe, ani, sse, psi, PRTF)
