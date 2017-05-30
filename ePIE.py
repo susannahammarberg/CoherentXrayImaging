@@ -77,7 +77,7 @@ def ePIE( n, diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positio
             #update probe function
 #            if k%4==0:
 #               probe = probe + 1 *(gprime-g) * np.conj(objectIlluminated)/ (np.max(abs(objectIlluminated))**2)
-            beta = 1
+            beta = 0.9
             probe = probe + beta *(gprime-g) * np.conj(objectIlluminated)/ (np.max(abs(objectIlluminated))**2)
             
             ########################            

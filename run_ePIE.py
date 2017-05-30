@@ -5,9 +5,21 @@ Created on Mon Mar 13 15:40:49 2017
 @author: Susanna Hammarberg
 
 See s.50 Giewekemeyer thesis för att gå mellan detektorplan och objektplan
+
+HOW TO RUN:
+* change scan_name_int to your desired scan nbr
+* change directory and metadata_directory
+* for vogt data choose mask directory
+* change nbr_scans, nbr_scansx, nbr_scansy
+* change parameters: energy etc
+* chose saved mask for vogt data or create mask with function create_mask that I wrote
+* choose how to cut and center the diffpatterns (diffSet = diffSet[:, 31:195, 152:336])
+* under 'probe construction' choose initial values for probe. do not forget the phase part
+* choose number of iterations
 """
-#from IPython import get_ipython
-#get_ipython().magic('reset -sf')
+
+from IPython import get_ipython
+get_ipython().magic('reset -sf')
 
 import sys   #to collect system path ( to collect function from another directory)
 sys.path.insert(0, 'C:/Users/Sanna/Desktop/CXI/Shrinkwrap') #to collect 2Dgaussian
@@ -29,12 +41,12 @@ import matplotlib.animation as animation
 
 plt.close("all")
 
-scan_name_int = 51   # for Wallentin scans
+scan_name_int = 17   
 scan_name_string = '%d' %scan_name_int   
 directory = 'D:/Nanomax/Wallentin/JWX31C_1/pilatus_scan_%s_' %scan_name_string 
-
-#directory = 'D:/Nanomax/Vogt_ptycho/scan33/pilatus_scan_33_'
-#directory = 'D:/Nanomax/Vogt_ptycho/scan83/pilatus_scan_83_'
+# OBS välj Voigt scan
+#directory = 'D:/Nanomax/Vogt_ptycho/scan33/pilatus_scan_%s_' %scan_name_string 
+#directory = 'D:/Nanomax/Vogt_ptycho/scan83/pilatus_scan_%s_'
 
 #metadata_directory = 'D:/Nanomax/Vogt_ptycho/scan83/DiWCr4_2.h5' #2 metadatafiler, den första är 1kB
 #metadata_directory = 'D:/Nanomax/Vogt_ptycho/scan33/DiWCr4_1.h5' 
@@ -44,15 +56,14 @@ metadata_directory ='D:/Nanomax/Wallentin/JWX31C_1/JWX31C_1.h5'
 #mask_directory = 'scan33_mask.hdf5'
 #mask_directory = 'scan83_mask.hdf5'
 
-motorpositions_directory = '/entry%s' %scan_name_string           #J.W  
-#motorpositions_directory = '/entry83'  
-#motorpositions_directory = '/entry33'  
+motorpositions_directory = '/entry%s' %scan_name_string           
 
-nbr_scans = 961#961#441  #221 scan17    #441     # 441 Scan49,38 J.W    #961 scan 33
-nbr_scansy = 31    #21#for scan49 J.W    #31 för scan 33
-nbr_scansx = 31
-#nbr_scansy = 17#21    scan 17 med 17x13?
-#nbr_scansx = 13#21
+
+nbr_scans = 221  #221 scan17     # 441 Scan49,38 J.W    #961 scan 33, 51
+#nbr_scansy = 21    #21#for scan49 J.W    #31 för scan 33
+#nbr_scansx = 21
+nbr_scansy = 17#21    scan 17 med 17x13?
+nbr_scansx = 13#21
 
 # exp. parameters for conversion between detector and object plane
 energy = 10.72#     # ?Wallentin.    
@@ -116,6 +127,8 @@ diffSet = probe_mask * diffSet
 del probe_mask
 
 def plot_rawdata():
+    
+    
     plt.figure()#*pixel_det*1E3 *pixel_det*1E3]
     #  OBS log(0) is undefined
     plt.imshow((sum(diffSet)), cmap='gray', interpolation='none', extent=[0,diffSet.shape[2]*pixel_det*1E3, 0, diffSet.shape[1]*pixel_det*1E3])
@@ -123,14 +136,8 @@ def plot_rawdata():
     plt.xlabel(' Extent on detector [mm]')
     plt.colorbar()
     plt.show()
-    
-    plt.figure()
-    plt.plot((np.log10(1+sum(diffSet))).ravel())#for hist, bins=100)
-    plt.show()
-    plt.figure()
-    plt.hist((np.log10(1+sum(diffSet))).ravel(),bins=100)#for hist, bins=100)
-    plt.show()    
-#plot_rawdata()    
+  
+plot_rawdata()    
 
 # Trim and center the diffraction patterns around max intensity
 # look att the sum of all patterns:
@@ -150,9 +157,9 @@ def plot_rawdata():
 
 # inte riktigt rätt för Wallentin, max är vid y=82 (rätt) x=92 (hä, 96)
 #diffSet = diffSet[:, 31:195, 150:342] # Vogt33
-diffSet = diffSet[:, 31:195, 152:336] # Wallentin51                ##242
+#diffSet = diffSet[:, 31:195, 152:336] # Wallentin51                ##242
 #diffSet = diffSet[:, 31:195, 152:330] # Wallentin38
-#diffSet = diffSet[:, 31:195, 146:336]  # Wallentin17 rätt?
+diffSet = diffSet[:, 31:195, 146:336]  # Wallentin17 rätt?
 
 def transmission_counter():
     index = 0# OK to use same variable name as in other places in code since it is in a function, right?
@@ -222,14 +229,14 @@ def diff_phase_contrast():
                     tempx = tempx + (n-nbr_scansx/2) * diffSet[index, m, n]
             # spara värdet på den första pixeln:
             # detta känns onödigt krävande för då måste if satsen kollas varje gång fast jag vet vilket k jag vill ha
-#            if index == 0:
-#                bkg_x = tempx
-#                bkg_y = tempy
+            if index == 0:
+                bkg_x = tempx
+                bkg_y = tempy
             sum_diffSet = sum(sum(diffSet[index]))
             diff_phasey[row, col] = tempy / sum_diffSet
             diff_phasex[row, col] = tempx / sum_diffSet
-            rem_bkg_x[row,col] = diff_phasex[row,col] - 68.25#bkg_x # 68.25
-            rem_bkg_y[row,col] = diff_phasey[row,col] - 62.2#bkg_y # 62.2
+            rem_bkg_x[row,col] = diff_phasex[row,col] - bkg_x # 68.25
+            rem_bkg_y[row,col] = diff_phasey[row,col] - bkg_y # 62.2
             # DPC in polar coordinates. r then phi:
             pol_DPC_r[row, col] = np.sqrt( (rem_bkg_x[row,col])**2 + (rem_bkg_y[row,col])**2)    
             pol_DPC_phi[row, col] = np.arctan( rem_bkg_y[row,col] / rem_bkg_x[row,col])
@@ -249,13 +256,17 @@ def plot_analysis():
     plt.imshow(transmission, cmap='gray', interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
     plt.title('Scan %d: Transmission'%scan_name_int)
     plt.xlabel('Nominal motorpositions [um]')
+    plt.ylabel('Nominal motorpositions [um]')
     plt.colorbar()
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_transm'%scan_name_int, bbox_inches='tight')
 
     plt.figure()
     plt.imshow(dark_field_image, cmap='gray', interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
     plt.title('Scan %d: Dark field image'%scan_name_int)    #%d #%((scan_name))
     plt.xlabel('Nominal motorpositions [um]')
     plt.colorbar()
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_DF'%scan_name_int, bbox_inches='tight')
+    
     
 #    plt.figure()
 #    plt.imshow(sum(diffSet), interpolation='none',  extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
@@ -263,35 +274,43 @@ def plot_analysis():
 #    plt.xlabel('Nominal motorpositions [um]')
 #    plt.colorbar()
 #    
-    plt.figure()
-    plt.imshow(dark_field_filter*sum(diffSet), interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
-    plt.title('Scan %d: Sum diffPatterns with dark-field filter '%scan_name_int)
-    plt.xlabel('Nominal motorpositions [um]')
-    plt.colorbar()
+#    plt.figure()
+#    plt.imshow(dark_field_filter*sum(diffSet), interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
+#    plt.title('Scan %d: Sum diffPatterns with dark-field filter '%scan_name_int)
+#    plt.xlabel('Nominal motorpositions [um]')
+#    plt.ylabel('Nominal motorpositions [um]')
+#    plt.colorbar()
+    
             
     plt.figure()
     plt.imshow(dpc_x, cmap='gray', interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
     plt.title('Scan %d: Differential phase constrast x'%scan_name_int)
-    plt.xlabel('Nominal motorpositions [um]')
+    plt.xlabel('Nominal motorpositions [um]')  
     plt.colorbar()
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_DPCx'%scan_name_int, bbox_inches='tight')
     
     plt.figure()
     plt.imshow(dpc_y, cmap='gray', interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
     plt.title('Scan %d: Differential phase constrast y'%scan_name_int)
     plt.xlabel('Nominal motorpositions [um]')
+    plt.ylabel('Nominal motorpositions [um]')
     plt.colorbar()
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_DPCy'%scan_name_int, bbox_inches='tight')
     
     plt.figure()
     plt.imshow(pol_DPC_r, cmap='gray', interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
-    plt.title('Scan %d: Differential phase constrast in pol cord r'%scan_name_int)
+    plt.title('Scan %d: DPC r'%scan_name_int)
     plt.xlabel('Nominal motorpositions [um]')
     plt.colorbar()
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_DPCpol_r'%scan_name_int, bbox_inches='tight')
 
     plt.figure()    
     plt.imshow(pol_DPC_phi, cmap = 'gray', interpolation='none', extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
-    plt.title('Scan %d: DPC_phi'%scan_name_int)
+    plt.title('Scan %d: DPC phi'%scan_name_int)
     plt.xlabel('Nominal motorpositions [um]')
+    plt.ylabel('Nominal motorpositions [um]')
     plt.colorbar()  
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_DPCpol_phi'%scan_name_int, bbox_inches='tight')
 
 #plot_analysis()
 
@@ -323,11 +342,11 @@ for i in range(0,nbr_scansx):   #gör 2 loops for diffrent nbr of scans in y and
     stepSizey[i] = (motorpositiony[i+1] - motorpositiony[i]) * 1E-6
 
 # probe construction
-sigmay = 2 #2 14.1# 14.1               # initial value of gaussian height
-sigmax = 2 #2                    # initial value of gaussian width
+sigmay = 1# 14.1# 14.1               # initial value of gaussian height     #Scan51 2 x 2 
+sigmax = 1# 10                    # initial value of gaussian width
 probe = create2Dgaussian( sigmay, sigmax, diffSet.shape[1], diffSet.shape[2])
 
-phase = np.pi/4 * circular_filter(diffSet.shape[1],diffSet.shape[2],2,0)
+phase = np.pi/4 * circular_filter(diffSet.shape[1],diffSet.shape[2],1,0)
 
 # create complex probe
 probe = probe * np.exp(1j*phase)
@@ -367,26 +386,27 @@ positionx = (motorpositionx - motorpositionx.min() ) *1E-6
 ## mirror diffraction patterns
 #diffSet = np.fliplr(diffSet)
 #
-plt.figure()                                #                        x                  y
-plt.imshow(abs(probe), cmap='gray', interpolation='none', extent=[0,sizeDiffObjectx*1E6,0,sizeDiffObjecty*1E6])
-plt.xlabel(' [µm]')
-plt.ylabel(' [µm]')
-plt.title('Initial probe amplitude')
-plt.colorbar()
-
-plt.figure()                               
-plt.imshow(np.angle(probe), cmap='gray', interpolation='none', extent=[0,sizeDiffObjectx*1E6,0,sizeDiffObjecty*1E6])
-plt.xlabel(' [µm]')
-plt.ylabel(' [µm]')
-plt.title('Initial probe phase')
-plt.colorbar()
+#plt.figure()                                #                        x                  y
+#plt.imshow(abs(probe), cmap='gray', interpolation='none', extent=[0,sizeDiffObjectx*1E6,0,sizeDiffObjecty*1E6])
+#plt.xlabel(' [µm]')
+#plt.ylabel(' [µm]')
+#plt.title('Initial probe amplitude')
+#plt.colorbar()
+#
+#plt.figure()                               
+#plt.imshow(np.angle(probe), cmap='gray', interpolation='none', extent=[0,sizeDiffObjectx*1E6,0,sizeDiffObjecty*1E6])
+#plt.xlabel(' [µm]')
+#plt.ylabel(' [µm]')
+#plt.title('Initial probe phase')
+#plt.colorbar()
 
 # run ePIE for k nbr of iterations
-k = 10
+k = 20
 objectFunc, probe, ani, sse, psi, PRTF = ePIE(k, diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx, nbr_scans)
 plt.show() #show animation
 #plt.figure()
 #plt.imshow(np.log10(abs(fft.fftshift(fft.fft2(objectFunc)))))
+
 
 #TODO someting.. PRTF?
 ### make ePIE function return psi (exit wave) for every position of probe
@@ -409,8 +429,9 @@ xCol = np.linspace(0,probe.shape[1]-1,probe.shape[1])*xpixel*1E6
 xRow = np.linspace(0,probe.shape[0]-1,probe.shape[0])*ypixel*1E6     #fler punkter?
 yFit = gauss(xCol,152,95,2)     #sumcolumns
 
-yCol_data = abs(probe.sum(axis=0))
-yRow_data = abs(probe.sum(axis=1))
+yCol_data = abs(probe.sum(axis=0))  # horizontal
+yRow_data = abs(probe.sum(axis=1))  # vertical 
+
 # fit probe columns to gaussian #p0 initial guesses for fitting (optional ((else == 1 1 1))
 poptCol, puCol = curve_fit(gauss, xCol, yCol_data, p0=[yCol_data.max(),1,1])
 # fit probe rows to gaussian
@@ -460,14 +481,14 @@ FWHM_row = 2.35482 * poptRow[2]
 #lineyy = diffSet.shape[1]/2 * np.ones((linex.shape))
 def plot():
      # colormap gray or jet
-    plt.figure()
-    plt.imshow(np.log10(sum(diffSet)+1), cmap='gray', interpolation='none', extent=[0,diffSet.shape[1]*pixel_det*1E3, 0, diffSet.shape[2]*pixel_det*1E3] )
-    plt.xlabel(' y [mm]')
-    plt.ylabel(' x [mm]')
-    plt.title('Scan %d: log10 of all diffraction patterns summed'%scan_name_int)   
-    plt.colorbar()
-    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_SumdiffPatt__k%d'%(scan_name_int, k))
-    
+#    plt.figure()
+#    plt.imshow(np.log10(sum(diffSet)+1), cmap='gray', interpolation='none', extent=[0,diffSet.shape[1]*pixel_det*1E3, 0, diffSet.shape[2]*pixel_det*1E3] )
+#    plt.xlabel(' y [mm]')
+#    plt.ylabel(' x [mm]')
+#    plt.title('Scan %d: log10 of all diffraction patterns summed'%scan_name_int)   
+#    plt.colorbar()
+#    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_SumdiffPatt__k%d'%(scan_name_int, k), bbox_inches='tight')
+#    
     #def plott():  
     plt.figure()     #, origin="lower"                         # sets the scale on axes. 
     plt.imshow( np.angle(objectFunc), cmap='gray', interpolation='none', extent=[0,objectFuncNx*xpixel*1E6, 0,objectFuncNy*ypixel*1E6])
@@ -476,7 +497,7 @@ def plot():
     plt.ylabel(' [µm]')
     plt.title('Scan %d: Object phase'%scan_name_int)
     plt.colorbar()
-    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Ophase_k%d'%(scan_name_int, k))
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Ophase_k%d'%(scan_name_int, k), bbox_inches='tight')
        
     plt.figure()                                                            # horisontalt vertikalt. xpixel * size(objectfunc[xled])
     plt.imshow(abs(objectFunc), cmap='gray', interpolation='none', extent=[0,objectFuncNx*xpixel*1E6, 0, objectFuncNy*ypixel*1E6])
@@ -484,7 +505,7 @@ def plot():
     plt.ylabel(' [µm]')
     plt.title('Scan %d: Object amplitude'%scan_name_int)
     plt.colorbar()
-    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Oamp_k%d'%(scan_name_int, k))
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Oamp_k%d'%(scan_name_int, k), bbox_inches='tight')
     
     plt.figure()
     plt.imshow(abs(probe), cmap='gray', interpolation='none', extent=[0,sizeDiffObjectx*1E6, 0,sizeDiffObjecty*1E6])
@@ -492,72 +513,67 @@ def plot():
     plt.ylabel(' [µm]')
     plt.title('Scan %d: Probe amplitude'%scan_name_int)
     plt.colorbar()
-    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Pamp_k%d'%(scan_name_int, k))
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Pamp_k%d'%(scan_name_int, k), bbox_inches='tight')
     
     plt.figure()                                                            # horisontalt vertikalt
     plt.imshow(np.angle(probe), cmap='gray', interpolation='none', extent=[ 0,sizeDiffObjectx*1E6, 0,sizeDiffObjecty*1E6])
     plt.xlabel(' [µm]')
     plt.ylabel(' [µm]')
     plt.title('Scan %d: Probe phase'%scan_name_int)
-    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Pphase_k%d'%(scan_name_int, k))
-    #plt.clim(-np.pi,np.pi)
     plt.colorbar()
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Pphase_k%d'%(scan_name_int, k), bbox_inches='tight')  
     
     plt.figure()
     plt.plot(sse)
     plt.xlabel(' iterations ')
     plt.ylabel(' SSE ')
     plt.title('Scan %d: SSE looking at central position only'%scan_name_int)
-    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_SSE_k%d'%(scan_name_int, k))
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_SSE_k%d'%(scan_name_int, k), bbox_inches='tight')
     
     plot_x = np.linspace(0,diffSet.shape[2]-1,diffSet.shape[2])*xpixel*1E6
     plt.figure()
-    plt.plot(plot_x,abs(probe.sum(axis=0)), 'b+:', label='data')                                    
+    plt.plot(plot_x ,abs(probe.sum(axis=0)), 'b+:', label='data')                                    
     plt.plot(plot_x, gauss(xCol, *poptCol), 'r-', label='fit')
     #plt.plot(plot_x, yFit, 'g', label='manual fit')
     plt.xlabel(' [µm]')
     plt.ylabel('Intensity')
-    plt.title('Scan %d: Probe summ_all_columns. FWHM: %f µm'%(scan_name_int,FWHM_col))
+    plt.title('Scan %d: Probe summed over all rows. FWHM: %f µm'%(scan_name_int,FWHM_col))     #horizontal line
     plt.legend()
-    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_probe_row_lineplot_k%d'%(scan_name_int, k))
-    #plt.axis((0,xpixel*diffSet.shape[2]*1E6,0,10))
-    
-    #my_xticks = xpixel*diffSet.shape[2]*1E6
-    #plt.set_xticks( my_xticks )
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_probe_row_lineplot_k%d'%(scan_name_int, k), bbox_inches='tight')
+
     plot_y = np.linspace(0,diffSet.shape[1]-1,diffSet.shape[1])*ypixel*1E6
     plt.figure()
-    plt.plot(plot_y, abs(probe.sum(axis=1)), 'b+:', label='data')  #sum
+    plt.plot(plot_y, abs(probe.sum(axis=1)), 'b+:', label='data')  # vertical line
     plt.plot(plot_y, gauss(xRow, *poptRow),'r-', label='fit')
     plt.legend() 
-    #plt.axis([0, sizeDiffObjectx*1E6, 0, sizeDiffObjecty*1E6])    #kontrollera så att x är x och y är y 
-    #plt.yscale( )
-    #plt.axis.set_xscale(sizeDiffObjectx*1E6) 
     plt.xlabel(' [µm]')
-    plt.title('Scan %d: Probe summ_all_columns. FWHM: %f µm'%(scan_name_int,FWHM_row))
-    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_probe_col_lineplot_k%d'%(scan_name_int, k))
+    plt.title('Scan %d: Probe summed over all columns. FWHM: %f µm'%(scan_name_int,FWHM_row))
+    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_probe_col_lineplot_k%d'%(scan_name_int, k), bbox_inches='tight')
+
+    def normalize_0_1(array):
+        array = (array - array.min()) / (array.max() - array.min())
+        return array
+#
+#    plt.figure()
+#    x_line = np.linspace(motorpositionx[0], motorpositionx[-1], nbr_scansx)
+#    row_line_nbr = 15
+#    plt.plot(x_line, normalize_0_1(pol_DPC_r[row_line_nbr,:]),'r+-' ,label='pol_DPC_r')
+#    plt.plot(x_line, normalize_0_1(dark_field_image[row_line_nbr,:]) ,'y+-', label='DF')  # detta är horisontella profilen   
+#    plt.title('Scan %d: Scaled horizontal line profiles'%scan_name_int)
+#    plt.xlabel('Nominal motorpositions [um]')
+#    plt.legend()
+#    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_DF_lineplot_x_k%d'%(scan_name_int, k), bbox_inches='tight')
+#    
+#    plt.figure()
+#    y_line = np.linspace(motorpositiony[0], motorpositiony[-1], nbr_scansy)
+#    col_line_nbr = 15
+#    plt.plot( y_line, normalize_0_1(pol_DPC_r[:, col_line_nbr]) ,'r+-', label='pol_DPC_r')
+#    plt.plot( y_line, normalize_0_1(dark_field_image[:, col_line_nbr]), 'y+-', label='DF')  # detta är vertikala profilen   
+#    plt.title('Scan %d: Scaled vertical line profiles'%scan_name_int)
+#    plt.xlabel('Nominal motorpositions [um]')
+#    plt.legend()
+#    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_DF_lineplot_y_k%d'%(scan_name_int, k), bbox_inches='tight')
+
     return 0
 plot()
 
-def normalize_0_1(array):
-    array = (array - array.min()) / (array.max() - array.min())
-    return array
-
-plt.figure()
-x_line = np.linspace(motorpositionx[0], motorpositionx[-1], nbr_scansx)
-row_line_nbr = 15
-plt.plot(x_line, normalize_0_1(pol_DPC_r[row_line_nbr]),'r+-' ,label='pol_DPC_r')
-plt.plot(x_line, normalize_0_1(dark_field_image[row_line_nbr,:]) ,'y+-', label='DF')  # detta är horisontella profilen   
-plt.title('Scan %d: Scaled line profiles'%scan_name_int)
-plt.xlabel('Nominal motorpositions [um]')
-plt.legend()
-plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_DF_lineplot_x_k%d'%(scan_name_int, k))
-
-plt.figure()
-y_line = np.linspace(motorpositiony[0], motorpositiony[-1], nbr_scansy)
-col_line_nbr = 15
-plt.plot(normalize_0_1(pol_DPC_r[:, col_line_nbr]), y_line ,'r+-', label='pol_DPC_r')
-plt.plot( normalize_0_1(dark_field_image[:, col_line_nbr]), y_line, 'y+-', label='DF')  # detta är horisontella profilen   
-plt.title('Scan %d: Scaled line profiles'%scan_name_int)
-plt.xlabel('Nominal motorpositions [um]')
-plt.legend()
-plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_DF_lineplot_y_k%d'%(scan_name_int, k))
