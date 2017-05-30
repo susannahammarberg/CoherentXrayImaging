@@ -7,7 +7,7 @@ Created on Thu Apr 13 15:50:57 2017
 #from IPython import get_ipython
 #get_ipython().magic('reset -sf')   #removes all variables saves
 import sys   #to collect system path ( to collect function from another directory)
-sys.path.insert(0, 'C:/Users/HonkyT/Desktop/CXI/Shrinkwrap')
+sys.path.insert(0, 'C:/Users/Sanna/Desktop/CXI/Shrinkwrap')
 
 import numpy as np
 from numpy import fft
@@ -22,20 +22,22 @@ from scipy import misc
 plt.close("all") # close all plotting windows
 
 # load image. look at FFT2. Skew image. Look att FFT2.
+def image():
+    image = misc.imread('star.bmp',flatten=True)
+    circle = misc.imread('circle.png',flatten=True)
+    low_values_indices = circle < 200  # Where values are low
+    circle[low_values_indices] = 0  # All low values set to 0
+    high_values_indices = circle > 0
+    circle[high_values_indices] = 1
+    #image = misc.imread('P.png',flatten=True)
+    #data = abs(fft.fftshift(fft.fft2(image)))
+    
+    theta = 10*np.pi / 180 #rad
+    # nä detta stämmer väl inte
+    r3 = 1 + 1/np.cos(theta)    #antal pixlar som motsvarar 1 pixel i xled i xz systemet
+    r1 = 1 + 1/ np.sin(theta) 
+    return 0
 
-image = misc.imread('star.bmp',flatten=True)
-circle = misc.imread('circle.png',flatten=True)
-low_values_indices = circle < 200  # Where values are low
-circle[low_values_indices] = 0  # All low values set to 0
-high_values_indices = circle > 0
-circle[high_values_indices] = 1
-#image = misc.imread('P.png',flatten=True)
-data = abs(fft.fftshift(fft.fft2(image)))
-
-theta = 10*np.pi / 180 #rad
-# nä detta stämmer väl inte
-r3 = 1 + 1/np.cos(theta)    #antal pixlar som motsvarar 1 pixel i xled i xz systemet
-r1 = 1 + 1/ np.sin(theta)   
 def skew_image():
     image_skewed = np.zeros((image.shape[0], ceil((image.shape[1]/np.cos(theta)))+ 50  ))
     
@@ -49,21 +51,23 @@ def skew_image():
     fft_image_skewed = fft.fftshift(fft.fft2(image_skewed))
     return image_skewed, fft_image_skewed
 # image in reciprocal space
-fft_image = fft.fftshift(fft.fft2(image))
-
+#fft_image = fft.fftshift(fft.fft2(image))
 
 
 # Create crystal: skewed and unskewed. 2D and 3D.
 # create FFTs of these. Filter out one peak.
 ################################################
+Nx = 350
+Ny = 350
+Nz = 350
 crystal = np.zeros((201,201), dtype= np.int32)
-crystal3D = np.zeros((201,201,201))
-crystal3D_filter = np.zeros((201,201,201), dtype= np.int32)
+crystal3D = np.zeros((Nz,Ny,Nx))
+crystal3D_filter = np.zeros((Nz,Ny,Nx), dtype= np.int32)
 # coordinates of crystal points (for 3D scattering plot)
 ycoor = np.zeros((6000))
 xcoor = np.zeros((6000))
 zcoor = np.zeros((6000))#2646
-crystal3D_phase = np.zeros((201,201,201))
+crystal3D_phase = np.zeros((Nz,Ny,Nx))
 
 crystal_filter2D=np.zeros((201,201), dtype= np.int32)
 dx = 3
@@ -74,7 +78,12 @@ for row in range(60,140,dx):
         crystal[row,col] = 1
 
 index=0
-for row in range(20,180,dx):  
+#==============================================================================
+# for row in range(20,180,dx):  
+#     for col in range(80,120,dx):
+#         for time in range(90,110,dx): 
+#==============================================================================
+for row in range(80,120,dx):  
     for col in range(80,120,dx):
         for time in range(90,110,dx):           
             ycoor[index] = row    #(these are for 3Dscattering plot)
@@ -92,6 +101,22 @@ for row in range(20,180,dx):
 
 # make an object of both phase and amplitude            
 crystal3D = crystal3D * np.exp(1j*crystal3D_phase)
+
+def pad_3D_object(obj, Nx, Ny, Nz): 
+    padded_object = np.zeros((Nz, Ny, Nx), dtype=np.complex64)
+    x = (Nx - obj.shape[2]) / 2
+    y = (Ny - obj.shape[1]) / 2 
+    z = (Ny - obj.shape[0]) / 2 
+    padded_object[z: z+ obj.shape[0] , y: y + obj.shape[1], x: x+ obj.shape[2]] = obj
+    
+    return padded_object      
+
+
+# warning: if you use the padding the 3D scatter plot will not show you that
+# innessessary or easier than to redefine the matris from the start?
+#crystal3D = pad_3D_object(crystal3D, 350, 350, 350)#   350
+
+                           
 
 # construct 2D and 3D filters            
 for row in range(92,108,dx_filter):
@@ -115,8 +140,6 @@ def skewed_crystal_diffPatterns(crystal, theta):
     for i in range(0,crystal.shape[0]-6):
         for j in range(0,crystal.shape[1]-6):
             xs = ceil(j / (1 + np.tan(theta)**2) + i*np.tan(theta)/ ( 1 + np.tan(theta)**2)  )
-            np.disp(xs)
-            #np.disp(xs)
             ys = i
             crystal_skewed[ys,xs] = crystal[i,j] 
     
@@ -128,21 +151,6 @@ def skewed_crystal_diffPatterns(crystal, theta):
     return (diffPattern, crystal_filter2D_skewed)
 
 #diffPattern_skewed, crystal_filter2D_skewed = skewed_crystal_diffPatterns(crystal, theta )
-
- #  create a polyhedron  
-def create_polyhedron():        
-    #dpol = 3            
-    #mini = 96
-    #poly = np.zeros((201,201,201))
-    #for row in range(mini+4,104,dpol):
-    #    for col in range(mini,120,dpol):
-    #        for time in range(mini,110,dpol):
-    #            poly[row,col,time] = 1
-    #            # add phase
-    #   # mini = mini-1        
-    return 0
-
-    
 
 
 # call shrinkwrap for filtered skewed crystal
@@ -169,25 +177,24 @@ crystal3D_fourier = fft.fftshift(fft.fftn(crystal3D))
 crystal_fourier = fft.fftshift(fft.fft2(crystal))
 
 
-
-
 # keep only one bragg peak of the FFT3
-filtered_crystal3D_fourier = crystal3D_filter * crystal3D_fourier
+#filtered_crystal3D_fourier = crystal3D_filter * crystal3D_fourier
 
-diffPattern3D = abs(filtered_crystal3D_fourier)**2
+#diffPattern3D = abs(filtered_crystal3D_fourier)**2
 
 # ifft back to real space
-filtered_real = fft.ifftn(fft.ifftshift(filtered_crystal3D_fourier))
+#filtered_real = fft.ifftn(fft.ifftshift(filtered_crystal3D_fourier))
+
 # take aboluter value and do ifft back to real space
 #filtered_real = ( fft.ifftn(fft.ifftshift(abs(filtered_crystal3D_fourier))))
 
 # call Shrinkwrap
-filtered_real = shrinkwrap3D(diffPattern3D)
+#filtered_real = shrinkwrap3D(diffPattern3D)
 
 
-diffPattern2Dy = np.sum(diffPattern3D, axis=0)
-diffPattern2Dx = np.sum(diffPattern3D, axis=1)
-diffPattern2Dz = np.sum(diffPattern3D, axis=2)
+#diffPattern2Dy = np.sum(diffPattern3D, axis=0)
+#diffPattern2Dx = np.sum(diffPattern3D, axis=1)
+#diffPattern2Dz = np.sum(diffPattern3D, axis=2)
 
 
 # call shrinkwrap 2D
@@ -218,13 +225,15 @@ def plot_skewed_2Dcrystal():
     plt.figure()
     plt.imshow(diffPattern_skewed, cmap='gray')
     plt.colorbar()
+    
     plt.figure()
     plt.imshow(crystal_filter2D_skewed, cmap='gray')
     plt.colorbar()
+    
     plt.figure()
     plt.imshow(diffPattern_skewed*crystal_filter2D_skewed, cmap='gray')
     plt.colorbar()
-
+#plot_skewed_2Dcrystal()
 
 def plot2dsummed(retrieved_x):
     plt.figure()
@@ -285,21 +294,21 @@ def plot_crystal2D():
 def plot_crystal3D():
     plt.figure()
     plt.subplot(221)
-    plt.imshow(abs(crystal3D[:,:,102]), cmap='gray')
+    plt.imshow(abs(crystal3D[:,:,176]), cmap='gray')
     #plt.title('xyplane cut')
     plt.xlabel(' x')
     plt.ylabel(' y')
     plt.colorbar()
     
     plt.subplot(222)
-    plt.imshow(abs(crystal3D[102,:,:]), cmap='gray')
+    plt.imshow(abs(crystal3D[175,:,:]), cmap='gray')
     #plt.title('xz cut')
     plt.xlabel(' z')
     plt.ylabel(' x')
     plt.colorbar()
     
     plt.subplot(223)        #x
-    plt.imshow(abs(crystal3D[:,101,:]), cmap='gray')
+    plt.imshow(abs(crystal3D[:,175,:]), cmap='gray')
     #plt.title('yz cut')
     plt.xlabel(' z')
     plt.ylabel(' y')
@@ -309,21 +318,21 @@ def plot_crystal3D():
         
     plt.figure()   #Phase
     plt.subplot(221)
-    plt.imshow(np.angle(crystal3D[:,:,102]), cmap='gray')
+    plt.imshow(np.angle(crystal3D[:,:,176]), cmap='gray')
     #plt.title('xyplane cut')
     plt.xlabel(' x')
     plt.ylabel(' y')
     plt.colorbar()
     
     plt.subplot(222)
-    plt.imshow(np.angle(crystal3D[102,:,:]), cmap='gray')
+    plt.imshow(np.angle(crystal3D[175,:,:]), cmap='gray')
     #plt.title('xz cut')
     plt.xlabel(' z')
     plt.ylabel(' x')
     plt.colorbar()
     
     plt.subplot(223)        #x
-    plt.imshow(np.angle(crystal3D[:,101,:]), cmap='gray')
+    plt.imshow(np.angle(crystal3D[:,175,:]), cmap='gray')
     #plt.title('yz cut')
     plt.xlabel(' z')
     plt.ylabel(' y')
@@ -339,21 +348,21 @@ def plot_crystal3D_reciprocal():
     plt.figure()
     #plt.title('hej')
     plt.subplot(221)
-    plt.imshow(np.log10(abs(crystal3D_fourier[:,:,100])),  cmap='gray')
+    plt.imshow(np.log10(abs(crystal3D_fourier[:,:,174])),  cmap='gray')
     #plt.title('xy plane cut')
     plt.xlabel(' x')
     plt.ylabel(' y')
     plt.colorbar()
     
     plt.subplot(222)
-    plt.imshow(np.log10(abs(crystal3D_fourier[100,:,:])),  cmap='gray')
+    plt.imshow(np.log10(abs(crystal3D_fourier[173,:,:])),  cmap='gray')
     #plt.title('xz plane ')
     plt.xlabel(' z')
     plt.ylabel(' x')    #rätt
     plt.colorbar()
     
     plt.subplot(223)
-    plt.imshow(np.log10(abs(crystal3D_fourier[:,100,:])), cmap='gray')
+    plt.imshow(np.log10(abs(crystal3D_fourier[:,173,:])), cmap='gray')
     #plt.title('yz plane')
     plt.xlabel(' z')
     plt.ylabel(' y')
@@ -361,7 +370,7 @@ def plot_crystal3D_reciprocal():
     
     plt.suptitle('Plane cuts of crystal in reciprocal space')
 
-#plot_crystal3D_reciprocal()
+plot_crystal3D_reciprocal()
 
 def plot_filtered_crystalFFt():
     plt.figure()
@@ -524,3 +533,19 @@ def create_plot_gaussian():
 #
 #plt.show()
 #
+
+#TODO  create a polyhedron  
+#def create_polyhedron():        
+#    #dpol = 3            
+#    #mini = 96
+#    #poly = np.zeros((201,201,201))
+#    #for row in range(mini+4,104,dpol):
+#    #    for col in range(mini,120,dpol):
+#    #        for time in range(mini,110,dpol):
+#    #            poly[row,col,time] = 1
+#    #            # add phase
+#    #   # mini = mini-1        
+#    return 0
+
+    
+
