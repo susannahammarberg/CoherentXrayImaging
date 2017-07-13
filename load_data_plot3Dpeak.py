@@ -22,6 +22,7 @@ and plot a 3D peak
 #%matplotlib qt5
 from numpy import fft
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 import numpy as np
 import h5py
 from math import floor
@@ -52,7 +53,7 @@ directory_pil100K = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX2
 #metadata_directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX33/NW2/JWX33_NW2.h5' 
 metadata_directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX29A_NW1/JWX29A_NW1.h5' 
 
-      
+from sys import getsizeof   #se hur mkt minne variabler tar upp       
 
 nbr_rotations = 5
 
@@ -75,11 +76,19 @@ epsilon = 2.220446049250313e-16
 
 
 # create matrix to hold raw diffraction patterns
+# one hole Merlin set:
+
+#getsizeof(nbr_rows) # returns values in bytes
+#getsizeof(diffSet_Merlin)  
+
 #diffSet=np.zeros((nbr_positions, 1043, 981))  # Pil1M
 
+# Allocate memory Pil 100K
+diffSet_Pil100K = np.zeros((nbr_rows,nbr_cols, 512, 512),dtype=np.int32)  
 diffSet_one_row = np.zeros((nbr_cols, 195, 487))   # Pil100K
 diffSet_one_position= np.zeros((nbr_rotations, 195, 487))#,dtype=np.complex64)
-
+# Allocate memory Merlin
+diffSet_Merlin = np.zeros((nbr_rows,nbr_cols, 512, 512),dtype=np.int32)  
 one_row = np.zeros(( nbr_cols, 512, 512))#,dtype=np.complex64)   # Merlin
 one_position= np.zeros((nbr_rotations, 512, 512))#,dtype=np.complex64)
 
@@ -90,61 +99,69 @@ motorpositions_gonphi=np.zeros((nbr_rotations))
 motorpositiony = np.zeros((nbr_rotations,nbr_rows))
 motorpositionx = np.zeros((nbr_rotations))
 
-# read data from hdf5-files
+# för att toppa minnet
+# diffSet_Merlin = np.zeros((18, nbr_rows,nbr_cols, 512, 512),dtype=np.int32)
+    
 for rotation in range(0, nbr_rotations):    # could equallt be scan_nbr instead of 'rotation'
+    # load all rows 0 : nbr_rows:
+    for row in range(0, nbr_rows):
+        position = row        
+    #        # what is the name of pil1M if pil100K is called Pilatus?
     
-#    # to load all rows in a flyscan:
-#    for position in range(0,nbr_positions): 
-    
-#        # what is the name of pil1M if pil100K is called Pilatus?
-#        data_position = scan.get('/entry_0000/measurement/Merlin/data' )
-#        #diffSet = np.array(data_scan)  
-#        diffSet[position] = np.array(data_position)          
-#    del scan, data_position    
-
-    # to load a single row in a flyscan:
-    row = 8
-    position = row
-    
-    scan = h5py.File( directory  + str('{0:04}'.format(position)) + '.hdf5','r') # read-only
-    #data_scan = scan.get('/entry_0000/measurement/Pilatus/data' ) #pilatus data
-    # what is the name of pil1M if pil100K is called Pilatus?
-    data_scan = scan.get('/entry_0000/measurement/Merlin/data' )
-    one_row = np.array(data_scan)
-    
-    # select one position from the row
-    col = 49
-    one_position[rotation] = one_row[col,:,:]       
-    
-    # load and save transmission data from pil100K:
-    scan = h5py.File( directory_pil100K  + str('{0:04}'.format(position)) + '.hdf5','r') # read-only
-    data_position = scan.get('/entry_0000/measurement/Pilatus/data' ) #pilatus data
-    diffSet_one_row = np.array(data_position)
-    
-    diffSet_one_position[rotation] = diffSet_one_row[col,:,:]
-    
-    del scan, data_scan
-    ## gather motor postion
-    motorpositions_directory = '/entry%s' %scan_name_string   
-    dataset_motorposition_gonphi = metadata.get(motorpositions_directory + '/measurement/gonphi')
-    motorpositions_gonphi[rotation] = np.array(dataset_motorposition_gonphi)
-    
-    dataset_motorpositiony = metadata.get(motorpositions_directory + '/measurement/samy')
-    dataset_motorpositionx = metadata.get(motorpositions_directory + '/measurement/samx')
-    
-    motorpositiony[rotation,:] = np.array(dataset_motorpositiony) 
-    motorpositionx[rotation] = np.array(dataset_motorpositionx) 
-    
-    # update directories to gather next scan
+        scan = h5py.File( directory  + str('{0:04}'.format(position)) + '.hdf5','r') # read-only
+        #data_scan = scan.get('/entry_0000/measurement/Pilatus/data' ) #pilatus data
+        # what is the name of pil1M if pil100K is called Pilatus?
+        data_scan = scan.get('/entry_0000/measurement/Merlin/data' )
+        # save a hole set (all postions) diffraction patterns but for only one angle
+        diffSet_Merlin[row] = np.array(data_scan)
+        one_row = np.array(data_scan)
+        
+        # select one position from the row
+        col = 49
+        one_position[rotation] = one_row[col,:,:]       
+        
+        # load and save transmission data from pil100K:
+        scan = h5py.File( directory_pil100K  + str('{0:04}'.format(position)) + '.hdf5','r') # read-only
+        data_pil = scan.get('/entry_0000/measurement/Pilatus/data' ) #pilatus data
+        diffSet_Pil100K[row] = np.array(data_pil)
+        diffSet_one_row = np.array(data_pil)
+        
+        diffSet_one_position[rotation] = diffSet_one_row[col,:,:]
+        
+        del scan, data_scan, data_pil
+#        ## gather motor postion
+#        motorpositions_directory = '/entry%s' %scan_name_string   
+#        dataset_motorposition_gonphi = metadata.get(motorpositions_directory + '/measurement/gonphi')
+#        motorpositions_gonphi[rotation] = np.array(dataset_motorposition_gonphi)
+#        
+#        dataset_motorpositiony = metadata.get(motorpositions_directory + '/measurement/samy')
+#        dataset_motorpositionx = metadata.get(motorpositions_directory + '/measurement/samx')
+#        # instead of samx, you find the motorposition in flyscans frmo 'adlink_buff'
+#        
+#        motorpositiony[rotation,:] = np.array(dataset_motorpositiony) 
+#        motorpositionx[rotation] = np.array(dataset_motorpositionx) 
+        
+        # update directories to gather next scan
     scan_name_int = scan_name_int + 1
     scan_name_string = '%d' %scan_name_int
     directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX29A_NW1/scan_0%d_merlin_'%scan_name_int 
-    # inte så snyggt att deklarera om detta?
-    
+        # inte så snyggt att deklarera om detta?
+        
     np.disp('rotation:')
     np.disp(rotation)
 # delete inside loop? why? no
 #del one_row
+plt.figure()
+plt.imshow(np.log10(np.sum(np.sum(diffSet_Merlin[:,:,:,:],axis=0),axis=0)), interpolation='none')
+plt.colorbar()
+plt.title('Scan_nbr_%d'%(scan_name_int))
+#
+#plt.figure()
+#plt.subplot(221)
+#plt.imshow(np.log10(np.sum(diffSet_Merlin[:,3,:,:],axis=0)), interpolation='none')
+#
+#plt.subplot(222)
+#plt.imshow(abs(fft.fftshift(fft.fft2(((np.sum(diffSet_Merlin[:,3,:,:],axis=0)))))), interpolation='none')
 
 def create_mask_Merlin():
 ##    probe_mask = np.ones((diffSet.shape[1],diffSet.shape[2]))
@@ -170,13 +187,88 @@ def create_mask_Merlin():
 # Choose mask: gather mask or make mask
 mask_Merlin = create_mask_Merlin()
 # apply mask
-one_position = one_position * mask_Merlin
+#one_position = one_position * mask_Merlin
+diffSet_Merlin = diffSet_Merlin * mask_Merlin
+
+plt.figure()
+plt.imshow(np.log10(np.sum(np.sum(diffSet_Merlin[:,:,:,:],axis=0),axis=0)), interpolation='none')
+plt.colorbar()
+plt.title('Scan_nbr_%d'%(scan_name_int))
+
+# call this bright field huh
+def bright_field():
+    
+    photons = np.zeros((nbr_rows,nbr_cols)) 
+    #max_intensity = np.sum(  np.sum(diffSet_Merlin,axis=1) , axis=1).max()   # sum over rows and columns not sum over different diffPatterns
+    for row in range(0,nbr_rows):
+        for col in range(0,nbr_cols):
+            photons[row,col] = sum(sum(diffSet_Merlin[row, col])) #/ max_intensity
+                
+    return photons
+bright_field = bright_field()
+plt.figure()
+plt.imshow(bright_field, cmap='gray', interpolation='none')#, extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
+plt.title('Scan %d: Bright field Merlin'%scan_name_int)
+#plt.xlabel('Nominal motorpositions [um]')
+#plt.ylabel('Nominal motorpositions [um]')
+plt.colorbar()
+
+def diff_phase_contrast():
+    tempy = 0
+    tempx = 0
+    index = 0
+    diff_phasey = np.zeros((nbr_rows,nbr_cols))
+    diff_phasex = np.zeros((nbr_rows,nbr_cols))
+    pol_DPC_r = np.zeros((nbr_rows,nbr_cols))
+    pol_DPC_phi = np.zeros((nbr_rows,nbr_cols))
+    rem_bkg_x = np.zeros((nbr_rows,nbr_cols))
+    rem_bkg_y = np.zeros((nbr_rows,nbr_cols))
+        
+    for row in range(0, nbr_rows):
+        for col in range(0, nbr_cols):
+            
+            for m in range(0, diffSet.shape[1]):
+                for n in range(0, diffSet.shape[2]):
+                    tempy = tempy + (m-nbr_scansy/2) * diffSet[index, m, n] #/ (diffSet[index, m, n]+ 2.220446049250313e-16)
+                    tempx = tempx + (n-nbr_scansx/2) * diffSet[index, m, n]
+            # spara värdet på den första pixeln:
+            # detta känns onödigt krävande för då måste if satsen kollas varje gång fast jag vet vilket k jag vill ha
+            if index == 0:
+                bkg_x = tempx
+                bkg_y = tempy
+            sum_diffSet = sum(sum(diffSet[index]))
+            diff_phasey[row, col] = tempy / sum_diffSet
+            diff_phasex[row, col] = tempx / sum_diffSet
+            rem_bkg_x[row,col] = diff_phasex[row,col] - bkg_x # 68.25
+            rem_bkg_y[row,col] = diff_phasey[row,col] - bkg_y # 62.2
+            # DPC in polar coordinates. r then phi:
+            pol_DPC_r[row, col] = np.sqrt( (rem_bkg_x[row,col])**2 + (rem_bkg_y[row,col])**2)    
+            pol_DPC_phi[row, col] = np.arctan( rem_bkg_y[row,col] / rem_bkg_x[row,col])
+            tempy = 0
+            tempx = 0
+            index = index + 1
+    #for row in range(0, nbr_scansy):
+    #    for col in range(0, nbr_scansx):
+                
+    return diff_phasex, diff_phasey, pol_DPC_r, pol_DPC_phi
+
+#dpc_x, dpc_y, pol_DPC_r, pol_DPC_phi = diff_phase_contrast()
 
 
 # def ROI
 one_position_roi = one_position[:,130:250,250:360]
 
-#this is definedfor the scatter plot:
+# select an even smaller roi:
+test=one_position_roi[15,54:64,47:57]
+
+
+#plt.figure()
+#plt.subplot(221)
+#plt.imshow(one_position_roi[15])
+#plt.subplot(222)
+#plt.imshow(abs(fft.fftshift(fft.ifft2(fft.ifftshift(one_position_roi[15])))))
+
+#this is defined to be able to plot scatter plot:
 x = np.linspace( first_scan_nbr , first_scan_nbr + nbr_rotations, nbr_rotations)
 y = np.linspace( 130, 250, 120)
 z = np.linspace( 250, 360, 110)
@@ -185,7 +277,7 @@ X1, Y1 = np.meshgrid(z,y)
 
 
 # save the Bragg peak in file to open it in matlab
-scipy.io.savemat('C:/Users/Sanna/Desktop/NanoMAX062017/Bragg_peak_S458_.mat', mdict={'Braggpeak': one_position_roi})
+#scipy.io.savemat('C:/Users/Sanna/Desktop/NanoMAX062017/Bragg_peak_S458_.mat', mdict={'Braggpeak': one_position_roi})
 
 
 #plt.figure()
@@ -198,40 +290,47 @@ plt.axis('off')
 plt.colorbar()
 plt.title('masked diffraction patterns sum of one position in 30 scans')
 
-for i in range(0,nbr_rotations,1):
+#Look how the COM directly on the diffraction pattern varies with angle. not a good COM definition.
+def COM_variation(j, nbr_iter):
+
+    for i in range (j,nbr_iter):
+        xindex = np.argmax(np.sum(one_position[i],axis=0))
+        yindex = np.argmax(np.sum(one_position[i],axis=1))
+        reddot=np.zeros((512,512))
+            
+        # Make a centred line in x and y intersection at COM
+        reddot[:,xindex] = 500000 
+        reddot[yindex,:] = 500000 
+        np.disp( xindex)
+        plt.figure()
+        noes  = ['spring', 'autumn']
+        plt.imshow(np.log10(one_position[i]), cmap=noes[1] , interpolation = 'none')
+        plt.imshow(np.log10(reddot))
+        #plt.imshow(np.log10(one_position[1]), cmap = 'hot', interpolation = 'none')
+        #plt.colorbar() funkar ej med flera imshows
+        plt.title('Scan_nbr_%d'%(first_scan_nbr+i))
+        
+#COM_variation(0,3)    
+
+# plot diffraction patterns merlin + pilK100
+for i in range(20,23,1):   #(0,nbr_rotations,1)
     plt.figure()
     plt.imshow(np.log10(one_position[i]), cmap = 'hot', interpolation = 'none')
     plt.colorbar()
     plt.title('Scan_nbr_%d'%(first_scan_nbr+i))
     plt.figure()
-    plt.imshow(np.log10(diffSet_onepoint[i]), cmap = 'hot', interpolation = 'none')
+    plt.imshow(np.log10(diffSet_one_position[i]), cmap = 'hot', interpolation = 'none')
     plt.colorbar()
     plt.title('Scan_nbr_%d'%(first_scan_nbr+i))
     
     
-#plt.figure()
-#rowsum= np.sum(one_position,axis=1)    
-#sumsum= np.sum(rowsum,axis=1)    
-#xlinE = np.linspace(458,487,30)
-#plt.plot(xlinE,sumsum,'+-')
-#plt.title('Summed intensity as function of scan for one position')
-#   
-#plt.figure()
-#plt.imshow((one_position[20]), cmap = 'hot', interpolation = 'none')
-#plt.title('Scan 478')
-#plt.colorbar()
-##plt.title('Scan_nbr_%d'%(first_scan_nbr+i))
-#
-#plt.figure()
-#plt.imshow(np.log10(one_position[21]), cmap = 'hot', interpolation = 'none')
-#plt.title('Scan 479')
-#plt.colorbar()
-#
-#plt.figure()
-#plt.imshow((one_position[22]), cmap = 'hot', interpolation = 'none')
-#plt.title('Scan 480')
-#plt.colorbar()
-
+plt.figure()
+rowsum= np.sum(one_position,axis=1)    
+sumsum= np.sum(rowsum,axis=1)    
+xlinE = np.linspace(458,487,nbr_rotations)
+plt.plot(xlinE,sumsum,'+-')
+plt.title('Summed intensity as function of scan for one position')
+   
 
 # TODO: gör en 3D scatter plot med färkodning för intensiteten:
     # gör meshgrids? lnispaces för xyz andvänd one_position för färg
