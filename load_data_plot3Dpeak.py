@@ -55,7 +55,7 @@ metadata_directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX
 
 from sys import getsizeof   #se hur mkt minne variabler tar upp       
 
-nbr_rotations = 5
+nbr_rotations = 1
 
 #(rows:)
 nbr_rows = 16  # (including 0000)
@@ -84,7 +84,7 @@ epsilon = 2.220446049250313e-16
 #diffSet=np.zeros((nbr_positions, 1043, 981))  # Pil1M
 
 # Allocate memory Pil 100K
-diffSet_Pil100K = np.zeros((nbr_rows,nbr_cols, 512, 512),dtype=np.int32)  
+diffSet_Pil100K = np.zeros((nbr_rows,nbr_cols, 195, 487),dtype=np.int32)  
 diffSet_one_row = np.zeros((nbr_cols, 195, 487))   # Pil100K
 diffSet_one_position= np.zeros((nbr_rotations, 195, 487))#,dtype=np.complex64)
 # Allocate memory Merlin
@@ -142,6 +142,7 @@ for rotation in range(0, nbr_rotations):    # could equallt be scan_nbr instead 
 #        motorpositionx[rotation] = np.array(dataset_motorpositionx) 
         
         # update directories to gather next scan
+
     scan_name_int = scan_name_int + 1
     scan_name_string = '%d' %scan_name_int
     directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX29A_NW1/scan_0%d_merlin_'%scan_name_int 
@@ -163,6 +164,7 @@ plt.title('Scan_nbr_%d'%(scan_name_int))
 #plt.subplot(222)
 #plt.imshow(abs(fft.fftshift(fft.fft2(((np.sum(diffSet_Merlin[:,3,:,:],axis=0)))))), interpolation='none')
 
+#TODO: kontrollera att maskning är OK
 def create_mask_Merlin():
 ##    probe_mask = np.ones((diffSet.shape[1],diffSet.shape[2]))
     # Find all cold? pixels (they show minus values)
@@ -186,37 +188,47 @@ def create_mask_Merlin():
 
 # Choose mask: gather mask or make mask
 mask_Merlin = create_mask_Merlin()
+
 # apply mask
-#one_position = one_position * mask_Merlin
+one_position = one_position * mask_Merlin
 diffSet_Merlin = diffSet_Merlin * mask_Merlin
 
-plt.figure()
-plt.imshow(np.log10(np.sum(np.sum(diffSet_Merlin[:,:,:,:],axis=0),axis=0)), interpolation='none')
-plt.colorbar()
-plt.title('Scan_nbr_%d'%(scan_name_int))
+def create_mask_Pil100K():
+##    probe_mask = np.ones((diffSet.shape[1],diffSet.shape[2]))
+    # Find all cold pixels (they show minus values)
+    sumTotalDiffSet= sum(sum(diffSet_Pil100K))
+    probe_mask = sumTotalDiffSet > 0
+    
+    # remove too high intensity pixels. 
+    j=239
+    probe_mask[111,j:245] = 0 
+    probe_mask[112,j:245] = 0 
+    probe_mask[113,j:245] = 0  
+    probe_mask[114,j:245] = 0 
+    probe_mask[115,j:245] = 0 
+#    probe_mask[113,242] = 0 #pixel with highest intensity
+    return probe_mask
 
-# call this bright field huh
-def bright_field():
+probe_mask_Pil100K = create_mask_Pil100K()
+# apply PilK100 mask
+diffSet_Pil100K = diffSet_Pil100K * probe_mask_Pil100K
+
+def bright_field(data):
     
     photons = np.zeros((nbr_rows,nbr_cols)) 
     #max_intensity = np.sum(  np.sum(diffSet_Merlin,axis=1) , axis=1).max()   # sum over rows and columns not sum over different diffPatterns
     for row in range(0,nbr_rows):
         for col in range(0,nbr_cols):
-            photons[row,col] = sum(sum(diffSet_Merlin[row, col])) #/ max_intensity
+            photons[row,col] = sum(sum(data[row, col])) #/ max_intensity
                 
     return photons
-bright_field = bright_field()
-plt.figure()
-plt.imshow(bright_field, cmap='gray', interpolation='none')#, extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
-plt.title('Scan %d: Bright field Merlin'%scan_name_int)
-#plt.xlabel('Nominal motorpositions [um]')
-#plt.ylabel('Nominal motorpositions [um]')
-plt.colorbar()
+#choose what detector to do bright field on
+bright_field = bright_field(diffSet_Pil100K)
 
-def diff_phase_contrast():
+def diff_phase_contrast(data):
     tempy = 0
     tempx = 0
-    index = 0
+    
     diff_phasey = np.zeros((nbr_rows,nbr_cols))
     diff_phasex = np.zeros((nbr_rows,nbr_cols))
     pol_DPC_r = np.zeros((nbr_rows,nbr_cols))
@@ -227,16 +239,17 @@ def diff_phase_contrast():
     for row in range(0, nbr_rows):
         for col in range(0, nbr_cols):
             
-            for m in range(0, diffSet.shape[1]):
-                for n in range(0, diffSet.shape[2]):
-                    tempy = tempy + (m-nbr_scansy/2) * diffSet[index, m, n] #/ (diffSet[index, m, n]+ 2.220446049250313e-16)
-                    tempx = tempx + (n-nbr_scansx/2) * diffSet[index, m, n]
+            # m and n pixels in the diffraction data
+            for m in range(0, data.shape[2]):
+                for n in range(0, data.shape[3]):
+                    tempy = tempy + (m-nbr_rows/2) * data[row, col, m, n] #/ (diffSet[index, m, n]+ 2.220446049250313e-16)
+                    tempx = tempx + (n-nbr_cols/2) * data[row, col, m, n]
             # spara värdet på den första pixeln:
             # detta känns onödigt krävande för då måste if satsen kollas varje gång fast jag vet vilket k jag vill ha
-            if index == 0:
+            if row == 0 and col == 0:
                 bkg_x = tempx
                 bkg_y = tempy
-            sum_diffSet = sum(sum(diffSet[index]))
+            sum_diffSet = sum(sum(data[row,col]))
             diff_phasey[row, col] = tempy / sum_diffSet
             diff_phasex[row, col] = tempx / sum_diffSet
             rem_bkg_x[row,col] = diff_phasex[row,col] - bkg_x # 68.25
@@ -246,20 +259,62 @@ def diff_phase_contrast():
             pol_DPC_phi[row, col] = np.arctan( rem_bkg_y[row,col] / rem_bkg_x[row,col])
             tempy = 0
             tempx = 0
-            index = index + 1
-    #for row in range(0, nbr_scansy):
-    #    for col in range(0, nbr_scansx):
-                
+        print row     
     return diff_phasex, diff_phasey, pol_DPC_r, pol_DPC_phi
 
-#dpc_x, dpc_y, pol_DPC_r, pol_DPC_phi = diff_phase_contrast()
+# Choose which detector images to analyze:
+        # TODO: fix this with the string name
+analyse_detector_name_string ='Merlin'
+#dpc_x, dpc_y, pol_DPC_r, pol_DPC_phi = diff_phase_contrast(diffSet_%s)%analyse_detector_name_string
+dpc_x, dpc_y, pol_DPC_r, pol_DPC_phi = diff_phase_contrast(diffSet_Pil100K)
 
+def plot_analysis():
+    
+    plt.figure()
+    plt.imshow(bright_field, cmap='gray', interpolation='none')#, extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
+    plt.title('Scan %d: Bright field'%scan_name_int)
+    #plt.xlabel('Nominal motorpositions [um]')
+    #plt.ylabel('Nominal motorpositions [um]')
+    plt.colorbar()
+    #plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_transm'%scan_name_int, bbox_inches='tight')
 
+     
+    plt.figure()
+    plt.imshow(dpc_x, cmap='gray', interpolation='none')#, extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
+    plt.title('Scan %d: Horizontal DPC'%scan_name_int)
+    #plt.xlabel('Nominal motorpositions [um]')  
+    plt.colorbar()
+    #plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_DPCx'%scan_name_int, bbox_inches='tight')
+    
+    plt.figure()
+    plt.imshow(dpc_y, cmap='gray', interpolation='none')#, extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
+    plt.title('Scan %d: Vertical DPC'%scan_name_int)
+    #plt.xlabel('Nominal motorpositions [um]')
+    #plt.ylabel('Nominal motorpositions [um]')
+    plt.colorbar()
+    #plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_DPCy'%scan_name_int, bbox_inches='tight')
+    
+    plt.figure()
+    plt.imshow(pol_DPC_r, cmap='gray', interpolation='none')#, extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
+    plt.title('Scan %d: DPC r'%scan_name_int)
+    plt.xlabel('Nominal motorpositions [um]')
+    plt.colorbar()
+    #plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_DPCpol_r'%scan_name_int, bbox_inches='tight')
+
+    plt.figure()    
+    plt.imshow(pol_DPC_phi, cmap = 'gray', interpolation='none')#, extent=[motorpositionx[0], motorpositionx[-1], motorpositiony[0], motorpositiony[-1] ])
+    plt.title('Scan %d: DPC phi'%scan_name_int)
+    #plt.xlabel('Nominal motorpositions [um]')
+    #plt.ylabel('Nominal motorpositions [um]')
+    plt.colorbar()  
+    #plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_DPCpol_phi'%scan_name_int, bbox_inches='tight')
+
+plot_analysis()
 # def ROI
 one_position_roi = one_position[:,130:250,250:360]
 
 # select an even smaller roi:
-test=one_position_roi[15,54:64,47:57]
+#test=one_position_roi[15,54:64,47:57]
 
 
 #plt.figure()
@@ -313,7 +368,7 @@ def COM_variation(j, nbr_iter):
 #COM_variation(0,3)    
 
 # plot diffraction patterns merlin + pilK100
-for i in range(20,23,1):   #(0,nbr_rotations,1)
+for i in range(0,nbr_rotations,1):   #(0,nbr_rotations,1)
     plt.figure()
     plt.imshow(np.log10(one_position[i]), cmap = 'hot', interpolation = 'none')
     plt.colorbar()
