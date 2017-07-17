@@ -60,7 +60,7 @@ metadata_directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX
 nbr_rotations = 2
 
 #(rows:)
-nbr_rows = 8  # (including 0000)
+nbr_rows = 3  # (including 0000)
 #flyscan x-positions:
 nbr_cols = 101 #(including 0000) #nbr_positionsy = 31    #21#for scan49 J.W    #31 för scan 33
 #nbr_positionsx = 31
@@ -91,6 +91,8 @@ diffSet_one_row = np.zeros((nbr_cols, 195, 487))   # Pil100K
 diffSet_one_position= np.zeros((nbr_rotations, 195, 487))#,dtype=np.complex64)
 # Allocate memory Merlin
 
+
+
 diffSet_Merlin = np.zeros((nbr_rows,nbr_cols, 512, 512),dtype=np.int32)  
 one_row = np.zeros(( nbr_cols, 512, 512))#,dtype=np.complex64)   # Merlin
 one_position= np.zeros((nbr_rotations, 512, 512))#,dtype=np.complex64)
@@ -105,12 +107,14 @@ motorpositionx = np.zeros((nbr_rotations))
 # insert all diffraction patterns for all positions,  rows and rotations into one tuple
 #diffSet_Merlin = []
 #diffSet_Merlin = sparse.csc_matrix((30, nbr_rows,nbr_cols, 512, 512))
-list_Merlin= [ [], [], [], [], [] ]            #make lists inside a list li
+row_Merlin = []
+list_Merlin = []# [ [], [], [], [], [] ]            #make lists inside a list li. alt kan man skriva list_Merlin.append([]) i for loopen
 #tuple_Merlin = ((nbr_rows), )    
 # maby should use tuple istead of list..
 
 for rotation in range(0, nbr_rotations):    # could equallt be scan_nbr instead of 'rotation'
     # load all rows 0 : nbr_rows:
+    new_list = []
     for row in range(0, nbr_rows): 
         position = row        
     #        # what is the name of pil1M if pil100K is called Pilatus?
@@ -124,12 +128,20 @@ for rotation in range(0, nbr_rotations):    # could equallt be scan_nbr instead 
         
         one_row = np.array(data_scan)
         
+        # jippie!!
+        M=[sparse.csc_matrix(one_row[i]) for i in xrange(nbr_cols)]
+
+        # lägg till M i en list för varje rad
+
+        new_list.append(M)
+        
+
         # select one position from the row
         col = 35 #49
-              
-        
+   
+        one_position_data = one_row[col,:,:]       
         one_position[rotation] = one_row[col,:,:]       
-        sparse_Merlin = sparse.csc_matrix(one_position[0])
+        #sparse_Merlin = sparse.csc_matrix(one_position[0])
         # OBS: random: insert one rotations on position from one row into a list
         
         # ett värde fölr varje rad (ej alla positioner är med : )
@@ -144,6 +156,10 @@ for rotation in range(0, nbr_rotations):    # could equallt be scan_nbr instead 
         diffSet_one_position[rotation] = diffSet_one_row[col,:,:]
         
         del scan, data_scan, data_pil
+        
+
+    
+
 #        ## gather motor postion
 #        motorpositions_directory = '/entry%s' %scan_name_string   
 #        dataset_motorposition_gonphi = metadata.get(motorpositions_directory + '/measurement/gonphi')
@@ -155,16 +171,21 @@ for rotation in range(0, nbr_rotations):    # could equallt be scan_nbr instead 
 #        
 #        motorpositiony[rotation,:] = np.array(dataset_motorpositiony) 
 #        motorpositionx[rotation] = np.array(dataset_motorpositionx) 
-        
-        # update directories to gather next scan
-
+    
+    # save the whole shebank
+    list_Merlin.append(new_list)
+    # update directories to gather next scan
     scan_name_int = scan_name_int + 1
     scan_name_string = '%d' %scan_name_int
     directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX29A_NW1/scan_0%d_merlin_'%scan_name_int 
         # inte så snyggt att deklarera om detta?
-    list_Merlin[0].append(sparse_Merlin)    
+        
     np.disp('rotation:')
     np.disp(rotation)
+    
+    
+    
+print getsizeof(list_Merlin)
 # delete inside loop? why? no
 #del one_row
 #plt.figure()
@@ -178,6 +199,16 @@ for rotation in range(0, nbr_rotations):    # could equallt be scan_nbr instead 
 #
 #plt.subplot(222)
 #plt.imshow(abs(fft.fftshift(fft.fft2(((np.sum(diffSet_Merlin[:,3,:,:],axis=0)))))), interpolation='none')
+
+
+
+## test 'unsparse' diffraction matrix
+#J=[m.toarray() for m in M]
+# for a single diffraction pattern:
+#list_Merlin[0][0][0].toarray()
+#plt.figure()
+#plt.imshow(np.log10(J[9]))
+
 
 #TODO: kontrollera att maskning är OK
 def create_mask_Merlin():
@@ -389,17 +420,27 @@ def COM_variation(j, nbr_iter):
 #COM_variation(0,3)    
 
 # plot diffraction patterns merlin + pilK100
-#for i in range(0,nbr_rotations,1):   #(0,nbr_rotations,1)
-#    plt.figure()
-#    plt.imshow(np.log10(one_position[i]), cmap = 'hot', interpolation = 'none')
-#    plt.colorbar()
-#    plt.title('Scan_nbr_%d'%(first_scan_nbr+i))
-#    plt.figure()
-#    plt.imshow(np.log10(diffSet_one_position[i]), cmap = 'hot', interpolation = 'none')
-#    plt.colorbar()
-#    plt.title('Scan_nbr_%d'%(first_scan_nbr+i))
+for i in range(0,nbr_rotations,1):   #(0,nbr_rotations,1)
+    plt.figure()
+    plt.imshow(np.log10(one_position[i]), cmap = 'hot', interpolation = 'none')
+    plt.colorbar()
+    plt.title('Scan_nbr_%d'%(first_scan_nbr+i))
     
+    plt.figure()
+    plt.imshow(np.log10(list_Merlin[i][nbr_rows-1][35].toarray()), cmap = 'hot', interpolation = 'none')
+    plt.colorbar()
+    plt.title('Scan_nbr_%d'%(first_scan_nbr+i))
+
     
+    plt.figure()
+    plt.imshow(np.log10(diffSet_one_position[i]), cmap = 'hot', interpolation = 'none')
+    plt.colorbar()
+    plt.title('Scan_nbr_%d'%(first_scan_nbr+i))
+    
+print getsizeof(one_position[0])
+pp=list_Merlin[0][0][0].toarray()     # OBS OBS jättestor!
+print getsizeof(pp)
+print getsizeof(list_Merlin[0][0][0])
 plt.figure()
 rowsum= np.sum(one_position,axis=1)    
 sumsum= np.sum(rowsum,axis=1)    
