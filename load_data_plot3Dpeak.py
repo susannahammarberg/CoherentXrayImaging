@@ -27,9 +27,11 @@ import numpy as np
 import h5py
 from math import floor
 from math import ceil
-import scipy
+#import scipy
 from scipy import misc # to imoport image
 from mpl_toolkits.mplot3d import axes3d
+from scipy import sparse 
+from sys import getsizeof   #se hur mkt minne variabler tar upp  
 #from mayavi import mlab
 
 plt.close("all")
@@ -53,12 +55,12 @@ directory_pil100K = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX2
 #metadata_directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX33/NW2/JWX33_NW2.h5' 
 metadata_directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX29A_NW1/JWX29A_NW1.h5' 
 
-from sys import getsizeof   #se hur mkt minne variabler tar upp       
+     
 
-nbr_rotations = 1
+nbr_rotations = 2
 
 #(rows:)
-nbr_rows = 16  # (including 0000)
+nbr_rows = 8  # (including 0000)
 #flyscan x-positions:
 nbr_cols = 101 #(including 0000) #nbr_positionsy = 31    #21#for scan49 J.W    #31 för scan 33
 #nbr_positionsx = 31
@@ -66,7 +68,7 @@ nbr_cols = 101 #(including 0000) #nbr_positionsy = 31    #21#for scan49 J.W    #
 #nbr_scansx = 13#21
 
 # exp. parameters for conversion between detector and object plane
-energy = 9.49   
+energy = 9.49   #keV   
 wavelength = (1.23984E-9)/energy
 pixel_det = 172E-6   # Pixel ctr to ctr distance (w) [m] #Pilatus
 z_det = 4.2   # Pil100K
@@ -88,6 +90,7 @@ diffSet_Pil100K = np.zeros((nbr_rows,nbr_cols, 195, 487),dtype=np.int32)
 diffSet_one_row = np.zeros((nbr_cols, 195, 487))   # Pil100K
 diffSet_one_position= np.zeros((nbr_rotations, 195, 487))#,dtype=np.complex64)
 # Allocate memory Merlin
+
 diffSet_Merlin = np.zeros((nbr_rows,nbr_cols, 512, 512),dtype=np.int32)  
 one_row = np.zeros(( nbr_cols, 512, 512))#,dtype=np.complex64)   # Merlin
 one_position= np.zeros((nbr_rotations, 512, 512))#,dtype=np.complex64)
@@ -99,12 +102,16 @@ motorpositions_gonphi=np.zeros((nbr_rotations))
 motorpositiony = np.zeros((nbr_rotations,nbr_rows))
 motorpositionx = np.zeros((nbr_rotations))
 
-# för att toppa minnet
-# diffSet_Merlin = np.zeros((18, nbr_rows,nbr_cols, 512, 512),dtype=np.int32)
-    
+# insert all diffraction patterns for all positions,  rows and rotations into one tuple
+#diffSet_Merlin = []
+#diffSet_Merlin = sparse.csc_matrix((30, nbr_rows,nbr_cols, 512, 512))
+list_Merlin= [ [], [], [], [], [] ]            #make lists inside a list li
+#tuple_Merlin = ((nbr_rows), )    
+# maby should use tuple istead of list..
+
 for rotation in range(0, nbr_rotations):    # could equallt be scan_nbr instead of 'rotation'
     # load all rows 0 : nbr_rows:
-    for row in range(0, nbr_rows):
+    for row in range(0, nbr_rows): 
         position = row        
     #        # what is the name of pil1M if pil100K is called Pilatus?
     
@@ -114,12 +121,20 @@ for rotation in range(0, nbr_rotations):    # could equallt be scan_nbr instead 
         data_scan = scan.get('/entry_0000/measurement/Merlin/data' )
         # save a hole set (all postions) diffraction patterns but for only one angle
         diffSet_Merlin[row] = np.array(data_scan)
+        
         one_row = np.array(data_scan)
         
         # select one position from the row
-        col = 49
-        one_position[rotation] = one_row[col,:,:]       
+        col = 35 #49
+              
         
+        one_position[rotation] = one_row[col,:,:]       
+        sparse_Merlin = sparse.csc_matrix(one_position[0])
+        # OBS: random: insert one rotations on position from one row into a list
+        
+        # ett värde fölr varje rad (ej alla positioner är med : )
+        #TODO:
+        #tuple_Merlin[row] = ((sparse_Merlin) )
         # load and save transmission data from pil100K:
         scan = h5py.File( directory_pil100K  + str('{0:04}'.format(position)) + '.hdf5','r') # read-only
         data_pil = scan.get('/entry_0000/measurement/Pilatus/data' ) #pilatus data
@@ -147,15 +162,15 @@ for rotation in range(0, nbr_rotations):    # could equallt be scan_nbr instead 
     scan_name_string = '%d' %scan_name_int
     directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX29A_NW1/scan_0%d_merlin_'%scan_name_int 
         # inte så snyggt att deklarera om detta?
-        
+    list_Merlin[0].append(sparse_Merlin)    
     np.disp('rotation:')
     np.disp(rotation)
 # delete inside loop? why? no
 #del one_row
-plt.figure()
-plt.imshow(np.log10(np.sum(np.sum(diffSet_Merlin[:,:,:,:],axis=0),axis=0)), interpolation='none')
-plt.colorbar()
-plt.title('Scan_nbr_%d'%(scan_name_int))
+#plt.figure()
+#plt.imshow(np.log10(np.sum(np.sum(diffSet_Merlin[:,:,:,:],axis=0),axis=0)), interpolation='none')
+#plt.colorbar()
+#plt.title('Scan_nbr_%d'%(scan_name_int))
 #
 #plt.figure()
 #plt.subplot(221)
@@ -200,18 +215,23 @@ def create_mask_Pil100K():
     probe_mask = sumTotalDiffSet > 0
     
     # remove too high intensity pixels. 
-    j=239
-    probe_mask[111,j:245] = 0 
-    probe_mask[112,j:245] = 0 
-    probe_mask[113,j:245] = 0  
-    probe_mask[114,j:245] = 0 
-    probe_mask[115,j:245] = 0 
+    probe_mask[84:116, 225:258] = 0 
+    probe_mask[152,229] = 0 
+#    j=239
+#    probe_mask[111,j:245] = 0 
+#    probe_mask[112,j:245] = 0 
+#    probe_mask[113,j:245] = 0  
+#    probe_mask[114,j:245] = 0 
+#    probe_mask[115,j:245] = 0 
 #    probe_mask[113,242] = 0 #pixel with highest intensity
     return probe_mask
 
 probe_mask_Pil100K = create_mask_Pil100K()
 # apply PilK100 mask
 diffSet_Pil100K = diffSet_Pil100K * probe_mask_Pil100K
+#plt.figure()
+#plt.imshow((sum(diffSet_Pil100K[10])))
+
 
 def bright_field(data):
     
@@ -266,7 +286,7 @@ def diff_phase_contrast(data):
         # TODO: fix this with the string name
 analyse_detector_name_string ='Merlin'
 #dpc_x, dpc_y, pol_DPC_r, pol_DPC_phi = diff_phase_contrast(diffSet_%s)%analyse_detector_name_string
-dpc_x, dpc_y, pol_DPC_r, pol_DPC_phi = diff_phase_contrast(diffSet_Pil100K)
+#dpc_x, dpc_y, pol_DPC_r, pol_DPC_phi = diff_phase_contrast(diffSet_Pil100K)
 
 def plot_analysis():
     
@@ -309,7 +329,8 @@ def plot_analysis():
     plt.colorbar()  
     #plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_DPCpol_phi'%scan_name_int, bbox_inches='tight')
 
-plot_analysis()
+#plot_analysis()
+
 # def ROI
 one_position_roi = one_position[:,130:250,250:360]
 
@@ -343,7 +364,7 @@ plt.figure()
 plt.imshow(np.log10((np.sum(one_position,axis=0))), cmap = 'hot', interpolation = 'none')
 plt.axis('off')
 plt.colorbar()
-plt.title('masked diffraction patterns sum of one position in 30 scans')
+plt.title('masked diffraction patterns sum of one position in %d scans'%nbr_rotations)
 
 #Look how the COM directly on the diffraction pattern varies with angle. not a good COM definition.
 def COM_variation(j, nbr_iter):
@@ -368,15 +389,15 @@ def COM_variation(j, nbr_iter):
 #COM_variation(0,3)    
 
 # plot diffraction patterns merlin + pilK100
-for i in range(0,nbr_rotations,1):   #(0,nbr_rotations,1)
-    plt.figure()
-    plt.imshow(np.log10(one_position[i]), cmap = 'hot', interpolation = 'none')
-    plt.colorbar()
-    plt.title('Scan_nbr_%d'%(first_scan_nbr+i))
-    plt.figure()
-    plt.imshow(np.log10(diffSet_one_position[i]), cmap = 'hot', interpolation = 'none')
-    plt.colorbar()
-    plt.title('Scan_nbr_%d'%(first_scan_nbr+i))
+#for i in range(0,nbr_rotations,1):   #(0,nbr_rotations,1)
+#    plt.figure()
+#    plt.imshow(np.log10(one_position[i]), cmap = 'hot', interpolation = 'none')
+#    plt.colorbar()
+#    plt.title('Scan_nbr_%d'%(first_scan_nbr+i))
+#    plt.figure()
+#    plt.imshow(np.log10(diffSet_one_position[i]), cmap = 'hot', interpolation = 'none')
+#    plt.colorbar()
+#    plt.title('Scan_nbr_%d'%(first_scan_nbr+i))
     
     
 plt.figure()
@@ -436,12 +457,12 @@ def funkar_ej():
 ##
 ### Eg there are 201 steps on the rocking curve
 ###rocking_steps= np.linspace(1,200)
-##summed_diffSet = np.zeros((201))
-##for i in range(0,201):
-##
-##    summed_diffSet[i] = sum(sum(diffSet[i]))
-##
-##    
+#summed_diffSet = np.zeros((201))
+#for i in range(0,201):
+#
+#    summed_diffSet[i] = sum(sum(diffSet[i]))
+#
+#    
 ##plt.figure()
 ##plt.plot(motorpositions_gonphi, np.log10(summed_diffSet))
 ##plt.figure()
