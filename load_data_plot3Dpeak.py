@@ -133,9 +133,9 @@ metadata = h5py.File( metadata_directory)
 # create motorpostion array to store for each scan
 motorpositions_gonphi=np.zeros((nbr_rotations))
 # y is sampled once per line (see JW mail called 'SV: data')
-motorpositiony = np.zeros((nbr_rotations,nbr_rows))
-# there is no samsx for flyscnas (there is one but i dont know what it means. Use 'adlink_buff' for x )
-motorpositionx = np.zeros((nbr_rotations))
+#motorpositiony = np.zeros((nbr_rotations,nbr_rows))
+## there is no samsx for flyscnas (there is one but i dont know what it means. Use 'adlink_buff' for x )
+#motorpositionx = np.zeros((nbr_rotations))
 
 row_Merlin = []
 list_Merlin = []# [ [], [], [], [], [] ]            #make lists inside a list li. alt kan man skriva list_Merlin.append([]) i for loopen
@@ -160,6 +160,8 @@ for scan_number in it.chain(range(458, 459)):#488), range(496, 515)):
      
     # define list to save all data from 1 rotatin(all rows, all postitions):
     temp_list = []
+    motorpositiony_list = []
+    motorpositionx_list = []
     # loop over all 16 flyscans that constitute the set
     for row in range(0, nbr_rows):  
         
@@ -187,6 +189,7 @@ for scan_number in it.chain(range(458, 459)):#488), range(496, 515)):
         def test_function_in_function():
             print('test')
         #test_function_in_function()
+        
 #        # load and save transmission data from pil100K:
 #        scan = h5py.File( directory_pil100K  + str('{0:04}'.format(row)) + '.hdf5','r') # read-only
 #        data_pil = scan.get('/entry_0000/measurement/Pilatus/data' ) #pilatus data
@@ -197,18 +200,22 @@ for scan_number in it.chain(range(458, 459)):#488), range(496, 515)):
         #del scan, data_Merlin, data_pil
     
 
-        ## gather motor postion
-        motorpositions_directory = '/entry%s' %scan_name_string   
-        dataset_motorposition_gonphi = metadata.get(motorpositions_directory + '/measurement/gonphi')
-        motorpositions_gonphi[rotation] = np.array(dataset_motorposition_gonphi)
-        
-        dataset_motorpositiony = metadata.get(motorpositions_directory + '/measurement/samy')
-        # instead of samx, you find the motorposition in flyscans frmo 'adlink_buff'
-        dataset_motorpositionx = metadata.get(motorpositions_directory + '/measurement/adlink_buff') 
-        
-        motorpositiony[rotation,:] = np.array(dataset_motorpositiony) 
-        # TODO: är detta rätt? 
-        motorpositionx[rotation] = np.array(dataset_motorpositionx) 
+
+    # gather motor postions from metadata (h5-file). one file for each scan #S,not one file for each flyscan
+    motorpositions_directory = '/entry%s' %scan_name_string  
+    
+    dataset_motorposition_gonphi = metadata.get(motorpositions_directory + '/measurement/gonphi')      
+    dataset_motorpositiony = metadata.get(motorpositions_directory + '/measurement/samy')
+    # instead of samx, you find the motorposition in flyscans from 'adlink_buff'
+    dataset_motorpositionx = metadata.get(motorpositions_directory + '/measurement/AdLinkAI_buff') 
+    
+
+
+    # TODO: add gonphi
+    #motorpositions_gonphi[rotation] = np.array(dataset_motorposition_gonphi)
+    motorpositiony_list.append(np.array(dataset_motorpositiony))
+    # Verkar vara massor av additional nollor i AdLinkAI_buff
+    motorpositionx_list.append(np.array(dataset_motorpositionx))
 
     # save the whole shebank (append one whole rotation )
     list_Merlin.append(temp_list)
@@ -223,12 +230,14 @@ for scan_number in it.chain(range(458, 459)):#488), range(496, 515)):
     np.disp(rotation)
 
 del scan, data_Merlin, one_row_sparse_Merlin, temp_list
+
 ## test 'unsparse' diffraction matrix
 #J=[m.toarray() for m in M]
 # for a single diffraction pattern:
 #list_Merlin[0][0][0].toarray()
 #plt.figure()
 #plt.imshow(np.log10(J[9]))
+
 
 
 def create_mask_Pil100K():
@@ -571,7 +580,7 @@ def plotalot():
 #        plt.colorbar()
 #        plt.title('Scan_nbr_%d'%(first_scan_nbr+i))
         
-plotalot()
+#plotalot()
 
 
 #pp=list_Merlin[0][0][0].toarray()     # OBS OBS jättestor!
