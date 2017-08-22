@@ -19,9 +19,9 @@ Plotting
 
 #$ ipython --gui=qt
 
-#import sys   #to collect system path ( to collect function from another directory)
-#sys.path.insert(0, 'C:/Users/HonkyT/Desktop/CXI/Shrinkwrap') #to collect 2Dgaussian
-
+import sys   #to collect system path ( to collect function from another directory)
+sys.path.insert(0, 'C:/Users/Sanna/Desktop/CXI/Shrinkwrap') #to collect 2Dgaussian
+from create2Dgaussian import create2Dgaussian
 # supports sparse matrices. dont know how they work with np matrises
 #import scipy.sparse as sparse
 #%matplotlib qt5
@@ -41,13 +41,13 @@ from sys import getsizeof   #se hur mkt minne variabler tar upp
 import matplotlib.animation as animation
 import itertools as it # used to iterate in 2 staes in a loop
 
-import sys   #to collect system path ( to collect function from another directory)
+#import sys   #to collect system path ( to collect function from another directory)
 sys.path.insert(0, 'C:\Users\Sanna\Desktop\CXI\Ptychography') #to collect ePIE
 from ePIE import ePIE  
 plt.close("all")
 
 # start at scan nbr:
-scan_name_int = 458 #458 # 94 fly scan    # is updated in for loop
+scan_name_int = 192 #458 # 94 fly scan    # is updated in for loop
 scan_name_string = '%d' %scan_name_int   
 first_scan_nbr = scan_name_int #save this nbr for plotting
 
@@ -57,13 +57,17 @@ first_scan_nbr = scan_name_int #save this nbr for plotting
 
 #directory = 'D:/exp20170628_Wallentin_nanomax/JWX33/NW2/stepscan_348/scan_0348_pil100k_' 
 
-directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX29A_NW1/scan_0%d_merlin_'%scan_name_int
-directory_pil100K = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX29A_NW1/scan_0%d_pil100K_'%scan_name_int 
+#directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX29A_NW1/scan_0%d_merlin_'%scan_name_int
+directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX33_NW2/scan_0%d_merlin_'%scan_name_int
+
+#directory_pil100K = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX29A_NW1/scan_0%d_pil100K_'%scan_name_int 
+directory_pil100K = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX33_NW2/scan_0%d_pil100K_'%scan_name_int 
 # OBS change the names to flyscan/stepscan
 #directory = 'D:/exp20170628_Wallentin_nanomax/NW1/scan97/scan_0097_pil1m_' 
 
-#metadata_directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX33/NW2/JWX33_NW2.h5' 
-metadata_directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX29A_NW1/JWX29A_NW1.h5' 
+# glöm ej att ändra i loopen också
+metadata_directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX33_NW2/JWX33_NW2.h5' 
+#metadata_directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX29A_NW1/JWX29A_NW1.h5' 
   
 # TODO:  
 # is not used in the loop that reads in that data anymore
@@ -71,9 +75,9 @@ metadata_directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX
 nbr_rotations = 30
 
 #(rows:) in one flyscan #S
-nbr_rows = 16  # (including 0000)
+nbr_rows = 17 # 16 för söndagsmacrot  # (including 0000)
 #flyscan x-positions:
-nbr_cols = 101 #(including 0000) #nbr_positionsy = 31    #21#for scan49 J.W    #31 för scan 33
+nbr_cols = 21# 101 #(including 0000) #nbr_positionsy = 31    #21#for scan49 J.W    #31 för scan 33
 #nbr_positionsx = 31
 #nbr_scansy = 17#21    scan 17 med 17x13?
 #nbr_scansx = 13#21
@@ -87,7 +91,7 @@ wavelength = (1.23984E-9)/energy
 pixel_det = 55E-6   # Pixel ctr to ctr distance (w) [m] #Merlin
 
 # object-detector distance? JWs skript säger 0.7
-#z_Merlin = 1.065  
+z_Merlin = 1.065  # inte rätt för söndagsmacrot
 #z_pil1M = 1.235
 epsilon = 2.220446049250313e-16
 
@@ -111,7 +115,12 @@ def create_mask_Merlin():
     
     probe_mask[38,280] = 0 
     probe_mask[420,380] = 0 
-        
+
+    # ta bort  korset på Merlin
+    probe_mask[255,:] = 0    
+    probe_mask[256,:] = 0   
+    probe_mask[:,255] = 0    
+    probe_mask[:,256] = 0    
     return probe_mask
 
 # Choose mask: gather mask or make mask
@@ -122,7 +131,7 @@ mask_Merlin = create_mask_Merlin()
 
 # Allocate memory Pil 100K
 # TODO_ cant have this it is to large
-#diffSet_Pil100K = np.zeros((nbr_rotations,nbr_rows,nbr_cols, 195, 487),dtype=np.int32)  
+diffSet_Pil100K = np.zeros((2,nbr_rows,nbr_cols, 195, 487),dtype=np.int32)  
 
 
 # Allocate memory Merlin
@@ -139,18 +148,17 @@ motorpositions_gonphi=np.zeros((nbr_rotations))
 
 row_Merlin = []
 list_Merlin = []# [ [], [], [], [], [] ]            #make lists inside a list li. alt kan man skriva list_Merlin.append([]) i for loopen
+motorpositiony = []
+motorpositionx = []
 #tuple_Merlin = ((nbr_rows), )    
 # maby should use tuple istead of list..
-
-# This is not so nice. confusing:
-# from 458-488 + 496-515
-# TODO: add the 2 scans replacing 472 and 487
+# index number called rotation
 rotation = 0
 # vetor defining how many pixels the diffraction pattern is shifted with (for Merlin #S458-461,496-515)
 vertical_shift = [-1,-1,0,0,0,  0,0,2,1,0,  1,1,1,0,-1,  -1,-1,-1,-1,0,  -1,-1,0,0,1,  1,-1,0,1,0,   2,0,0,1,1,  1,0,0,1,1,  1,2,2,2,4,  3,3,3,3,3,   3];
 
 # read in and save data ROIs + motorpositions. mask data
-for scan_number in it.chain(range(458, 459)):#488), range(496, 515)):
+for scan_number in it.chain(range(192, 193)):#488), range(496, 515)):
     
     # replace the scans that where rerun:     
     if (scan_number == 472):  
@@ -158,10 +166,9 @@ for scan_number in it.chain(range(458, 459)):#488), range(496, 515)):
     elif (scan_number == 487):
         scan_number = 519
      
-    # define list to save all data from 1 rotatin(all rows, all postitions):
+    # define list to save all data from 1 rotation(all rows, all postitions):
     temp_list = []
-    motorpositiony_list = []
-    motorpositionx_list = []
+
     # loop over all 16 flyscans that constitute the set
     for row in range(0, nbr_rows):  
         
@@ -176,9 +183,11 @@ for scan_number in it.chain(range(458, 459)):#488), range(496, 515)):
         
         # (gör det någon skillnad om jag gör maskningen och väljer roi på denna rad istället och skippar att 
         # spara det i en 'vanlig' matris?)
-        # select roi on the detector
-        roi_y = vertical_shift[rotation] + 100, vertical_shift[rotation] + 300
-        data_Merlin = data_Merlin[:, roi_y[0]:roi_y[1], 100:380] #       data_Merlin = data_Merlin[:,130:250,250:360]
+        # select roi on the detector   (for the last macro)
+#        roi_y = vertical_shift[rotation] + 100, vertical_shift[rotation] + 300
+#        data_Merlin = data_Merlin[:, roi_y[0]:roi_y[1], 100:380] #       data_Merlin = data_Merlin[:,130:250,250:360]
+#        select roi (other scans)
+        data_Merlin = data_Merlin[:, 200: 480, 100:380]
 
         # save all images as sparse matrices in a list M
         one_row_sparse_Merlin = [sparse.lil_matrix(data_Merlin[i]) for i in xrange(nbr_cols)]
@@ -190,10 +199,10 @@ for scan_number in it.chain(range(458, 459)):#488), range(496, 515)):
             print('test')
         #test_function_in_function()
         
-#        # load and save transmission data from pil100K:
-#        scan = h5py.File( directory_pil100K  + str('{0:04}'.format(row)) + '.hdf5','r') # read-only
-#        data_pil = scan.get('/entry_0000/measurement/Pilatus/data' ) #pilatus data
-#        diffSet_Pil100K[rotation][row] = np.array(data_pil)
+        #load and save transmission data from pil100K:
+        scan = h5py.File( directory_pil100K  + str('{0:04}'.format(row)) + '.hdf5','r') # read-only
+        data_pil = scan.get('/entry_0000/measurement/Pilatus/data' ) #pilatus data
+        diffSet_Pil100K[rotation][row] = np.array(data_pil)
 
         
         #good or bad to delete inside loop? gets overwritten if not.
@@ -211,25 +220,40 @@ for scan_number in it.chain(range(458, 459)):#488), range(496, 515)):
     
 
 
-    # TODO: add gonphi
-    #motorpositions_gonphi[rotation] = np.array(dataset_motorposition_gonphi)
-    motorpositiony_list.append(np.array(dataset_motorpositiony))
-    # Verkar vara massor av additional nollor i AdLinkAI_buff
-    motorpositionx_list.append(np.array(dataset_motorpositionx))
 
-    # save the whole shebank (append one whole rotation )
+    # TODO: add gonphi
+    motorpositions_gonphi[rotation] = np.array(dataset_motorposition_gonphi)
+    
+    motorpositiony.append(np.array(dataset_motorpositiony))
+    
+    # Load in x motorpositions from AdLinkAI_buff (contains additional zeros)
+    motorpositionx_with_zeros = np.array(dataset_motorpositionx)
+    # store the positions without the zeros
+    motorpositionx.append(motorpositionx_with_zeros[:,0:nbr_cols])
+
+    
+    
+    # save the whole diffraction-shebank (append one whole rotation )
     list_Merlin.append(temp_list)
 
     rotation = rotation + 1
     # update directories to gather next scan
     scan_name_string = '%d' %scan_number
-    directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX29A_NW1/scan_0%d_merlin_'%scan_number 
+    
+    #directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX29A_NW1/scan_0%d_merlin_'%scan_number # sundaymacro
+    directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX33_NW2/scan_0%d_merlin_'%scan_number 
         # inte så snyggt att deklarera om directory?
         
     np.disp('rotation:')
     np.disp(rotation)
 
-del scan, data_Merlin, one_row_sparse_Merlin, temp_list
+del scan, data_Merlin, one_row_sparse_Merlin, temp_list, motorpositionx_with_zeros
+#del data_pil
+del dataset_motorpositionx, dataset_motorpositiony, dataset_motorposition_gonphi
+
+fig = plt.figure()
+plt.imshow(np.log10(list_Merlin[0][9][15].toarray()), cmap = 'jet', interpolation = 'none')
+plt.colorbar()
 
 ## test 'unsparse' diffraction matrix
 #J=[m.toarray() for m in M]
@@ -259,9 +283,9 @@ def create_mask_Pil100K():
 #    probe_mask[113,242] = 0 #pixel with highest intensity
     return probe_mask
 
-#probe_mask_Pil100K = create_mask_Pil100K()
+probe_mask_Pil100K = create_mask_Pil100K()
 ## apply PilK100 mask
-#diffSet_Pil100K = diffSet_Pil100K * probe_mask_Pil100K
+diffSet_Pil100K = diffSet_Pil100K * probe_mask_Pil100K
 
 #objectFunc, probe, ani, sse, psi, PRTF = ePIE(k, diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx, nbr_scans)
 def bright_field_analysis(data):
@@ -391,95 +415,137 @@ def variables_scatterplot():
     X1, Y1 = np.meshgrid(z,y)
 #variables_scatterplot()
 
+ 
+# construct a factor I0 to compensate for intensity variation in the beam 
+# where I0 = 1 is the largest value
+def intens_norm_PilK100(rotation):
+    
+    I0 = np.zeros((nbr_rows, nbr_cols))
+    for row in range(0,nbr_rows):
+        for col in range (0, nbr_cols):
+            I0[row][col] = sum(sum(diffSet_Pil100K[rotation][row][col]))
+    I0 = I0/I0.max()
+    return I0
+I0 = intens_norm_PilK100(0)
 
-# TODO: rewrite to Bragg conditions
-def calc_phaseRetrival_object_size():    
-#def calc_pixelsize_Merlin():
-#def calc_pixelsize_Pil100K():
-    
-    # Sizes of roi of diffraction patterns (pixels used on the Merlin detector)
-    Ny = list_Merlin[0][0][0].shape[0]      
-    Nx = list_Merlin[0][0][0].shape[1]     
+# TODO: this can be for both Bragg and transmission. factor np.cos(2theta) blir ju ett för vinkel 0    
+#def preps_phaseretival_2DBragg(rotation):
+# Run ePIE for Flyscans    
+#def run_ePIE_2D(rotation):
+rotation = 0
+# theta should be read out from gonphi for each particular scan=?
+theta = 11.1*np.pi/180 #arb
 
-         
-    
-    # factor for defining pixel sizes in object plane
-    yfactor = (1./Ny)*z*wavelength
-    xfactor = (1./Nx)*z*wavelength
-     
-    # calculate how long each step is in x and y OBS kan också vara minus
-    stepSizex = np.zeros((nbr_scansx,1))
-    stepSizey = np.zeros((nbr_scansy,1))
-    for i in range(0,nbr_scansx):   #gör 2 loops for diffrent nbr of scans in y and x . convert from microns to meters
-        stepSizex[i] = (motorpositionx[i+1] - motorpositionx[i]) * 1E-6
-        stepSizey[i] = (motorpositiony[i+1] - motorpositiony[i]) * 1E-6
+# Sizes of roi of diffraction patterns (pixels used on the Merlin detector)
+Ny = list_Merlin[0][0][0].shape[0]      
+Nx = list_Merlin[0][0][0].shape[1]     
 
+# size of one pixel in objectplane
+xpixel = z_Merlin*wavelength/ (Nx * pixel_det)
+ypixel = z_Merlin*wavelength/ (Ny * pixel_det)
 
-    # size of one pixel in objectplane. (blir annorlunda för att Nx och Ny är olika)
-    xpixel = xfactor/pixel_det
-    ypixel = yfactor/pixel_det
-    
-    # what the width of the diffraction pattern equals to in object plan (pixlar * pixelstorlekx/y)
-    sizeDiffObjectx =  Nx * xpixel
-    sizeDiffObjecty =  Ny * ypixel
-    
-    # hur långt motorn rör sig i x och yled: 
-    motorWidthx = ( motorpositionx.max() - motorpositionx.min() ) * 1E-6
-    motorWidthy = ( motorpositiony.max() - motorpositiony.min() ) * 1E-6
-    
-    # so the size of the object function should be enough to contain: (but actually it becomes a little bit larger because i have to round of to a hole pixel)
-    objectFuncSizeMaxy = motorWidthy + sizeDiffObjecty
-    objectFuncSizeMaxx = motorWidthx + sizeDiffObjectx
-    
-    # so with a pixel-size of xpixel * ypixel, the obect function should be this many pixels:
-        # should i use ceil!? or floor?
-    objectFuncNy = ceil(objectFuncSizeMaxy / ypixel)
-    objectFuncNx = ceil(objectFuncSizeMaxx / xpixel)
-    
-    # allocate memory for object function
-    objectFunc = np.zeros((int(objectFuncNy), int(objectFuncNx)))
-    
-    # 'normalized' motorpostions converted to meters
-    positiony = (motorpositiony - motorpositiony.min() ) *1E-6
-    positionx = (motorpositionx - motorpositionx.min() ) *1E-6
+# what the width of the diffraction pattern equals to in object plan (pixlar * pixelstorlekx/y)
+sizeDiffObjectx = Nx * xpixel
+sizeDiffObjecty = Ny * ypixel
+   
+# hur långt motorn rör sig i x och yled: 
+# TODO: lägga in en factor *np.cos(2*theta)
+motorpositiony[rotation] = np.cos(2*theta)* motorpositiony[rotation]
+motorpositionx[rotation] = np.cos(2*theta)* motorpositionx[rotation]
+motorWidthx = ( motorpositionx[rotation].max() - motorpositionx[rotation].min() ) * 1E-6
+motorWidthy = ( motorpositiony[rotation].max() - motorpositiony[rotation].min() ) * 1E-6
 
-def run_ePIE():
-    # TODO normalize
-    #nbr of iterations
-    k = 1
-    # choose a scan (first column in list_Merlin to do phase retrieval on)
-    rot = 0
-    # each scan is on a grid of 16 rows (16 flyscans) and 101 cols 
-    # in total 16*101=1616 diffraction patterns. Insert these in to a 
-    # numpy matrix like diffSet, that I used before.
-    index = 0
-    diffSet = np.zeros((1616,200,280 ))
-    for row in range(0,15):
-        for col in range(0,101):
-            diffSet[index] = list_Merlin[rot][row][col].toarray()
-            
-            
-    probe = np.ones((200,280))
-    objectFuncNy = 16 #?
-    objectFuncNx = 101 #?
+# so the size of the object function should be enough to contain: (but actually it becomes a little bit larger because i have to round of to a hole pixel)
+objectFuncSizeMaxy = motorWidthy + sizeDiffObjecty
+objectFuncSizeMaxx = motorWidthx + sizeDiffObjectx
+
+# so with a pixel-size of xpixel * ypixel, the obect function should be this many pixels:
+# should i use ceil!? or floor?
+objectFuncNy = ceil(objectFuncSizeMaxy / ypixel)
+objectFuncNx = ceil(objectFuncSizeMaxx / xpixel)
+
+# allocate memory for object function
+objectFunc = np.zeros((int(objectFuncNy), int(objectFuncNx)))
+
+####
+# handle motorpositions so that they are in a format that work in the ePIE algorithm
+# They should be in a vector, not a matrix, with length equal to the amount of grid positions
+#####
+# the y motorposition only has one datapoint per row so i copy it (in a confusing but good way)
+positiony = np.ones((nbr_cols,nbr_rows))
+positiony = (positiony * motorpositiony[rotation]).transpose()
+positiony = positiony.ravel()
+# convert the xpositions, which are in a matrix, to a long vector
+positionx = motorpositionx[rotation].ravel()
+
+# 'normalized' motorpostions converted to meters
+positiony = (positiony - positiony.min() ) *1E-6
+positionx = (positionx - positionx.min() ) *1E-6
+
+#nbr of iterations
+k = 1
+# calculate the total number of 'grid' points
+nbr_scans = nbr_cols*nbr_rows
+# each scan is on a grid of 16 rows (16 flyscans) and 101 cols 
+# in total 16*101=1616 diffraction patterns. Insert these in to a 
+# numpy matrix like diffSet, that I used before.
+index = 0
+# FÖR SISTA MACROT ( så att båda 2 peakarna får plats ): diffSet = np.zeros((1616,200,280 ))
+diffSet = np.zeros((nbr_scans,Ny, Nx))
+for row in range(0,nbr_rows):
+    for col in range(0,nbr_cols):
+        # compensate for intensity variation with the factor I0
+        diffSet[index] = list_Merlin[rotation][row][col].toarray() / I0[row][col] 
+        index = index + 1
+        
+
+# probe construction
+sigmay = 5# 14.1# 14.1               # initial value of gaussian height     #Scan51 2 x 2 
+sigmax = 5# 10                    # initial value of gaussian width
+probe = create2Dgaussian( sigmay, sigmax, diffSet.shape[1], diffSet.shape[2])
+
+fig = plt.figure()
+plt.imshow(np.log10(sum(diffSet)), cmap = 'jet', interpolation = 'none')
+plt.colorbar()
+
+# run 2d ePIE
+objectFunc, probe, ani, sse, psi, PRTF = ePIE(k, diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx, nbr_scans)
+
+#    return (objectFunc, probe)
+# run ePIE 2D. use rotation as input
+#objectFunc, probe = run_ePIE_2D(0)
+plt.figure()
+plt.imshow((abs(objectFunc)), cmap='gray', interpolation = 'none')
+plt.title('Scan %d: Object amplitude'%scan_name_int)
+plt.colorbar()
+
+plt.figure()     #, origin="lower"                         # sets the scale on axes. 
+plt.imshow( np.angle(objectFunc), cmap='jet', interpolation='none') #, cmap='gray'
+plt.title('Scan %d: Object phase'%scan_name_int)
+plt.colorbar()
+
+plt.figure()
+plt.imshow(abs(probe), cmap='jet', interpolation='none')
+plt.xlabel(' [$\mu m$]')
+plt.ylabel(' [$\mu m$]')
+plt.title('Scan %d: Probe amplitude'%scan_name_int)
+plt.colorbar()
+   # plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Pamp_k%d'%(scan_name_int, k), bbox_inches='tight')
+
+plt.figure()                                                            # horisontalt vertikalt
+plt.imshow(np.angle(probe), cmap='gray', interpolation='none')#, extent=[ 0,sizeDiffObjectx*1E6, 0,sizeDiffObjecty*1E6])
+plt.xlabel(' [$\mu m$]')
+plt.ylabel(' [$\mu m$]')
+plt.title('Scan %d: Probe phase'%scan_name_int)
+plt.colorbar()
+ #   plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Pphase_k%d'%(scan_name_int, k), bbox_inches='tight')  
     
-    #måste jag ha xpixel y pixel för att kunna köra?
-    # xpixel 
-    # position?
-    nbr_scans = 1616
-    # run 2d ePIE
-    #objectFunc, probe, ani, sse, psi, PRTF = ePIE(k, diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx, nbr_scans)
-run_ePIE()
+#    #plt.gca().invert_yaxis() 
 
-
-
+#plt.show()
 
 # save the Bragg peak in file to open it in matlab
 #scipy.io.savemat('C:/Users/Sanna/Desktop/NanoMAX062017/Bragg_peak_S458_.mat', mdict={'Braggpeak': one_position_roi})
-
-
-
-
 
 
 # Look how the COM directly on the diffraction pattern varies with angle. not a good COM definition.
@@ -582,7 +648,6 @@ def plotalot():
         
 #plotalot()
 
-
 #pp=list_Merlin[0][0][0].toarray()     # OBS OBS jättestor!
 #print getsizeof(pp)
 #print getsizeof(list_Merlin[0][0][0])
@@ -610,6 +675,58 @@ def plot_Bragg():
     plt.title('Bragg peak')
 #plot_Bragg() 
 
+
+
+# TODO: redo
+def stage_phaseretrival_3dBragg(rotation):    
+#def calc_pixelsize_Merlin():
+#def calc_pixelsize_Pil100K():
+    # theta should be read out from gonphi for each particular scan=?
+    theta = 15*np.pi/180 #arb
+    
+    # Sizes of roi of diffraction patterns (pixels used on the Merlin detector)
+    Ny = list_Merlin[0][0][0].shape[0]      
+    Nx = list_Merlin[0][0][0].shape[1]     
+    
+    # define pixel sizes in reciprocal space
+    dq1 = 2*np.pi*pixel_det /(wavelength * z_Merlin)
+    dq2 = 2*np.pi*pixel_det /(wavelength * z_Merlin)
+    
+    # one pixel on the object plane correspongs to ... m in the object plane at distance z from the detector (x and y)
+    # är det rätt med Nx och Ny och inte tvärtom?
+    dr1 = 2*np.pi / ( Ny * dq1 * np.cos(theta))
+    dr2 = 2*np.pi / ( Nx * dq2 * np.cos(theta))
+    #dr3 = 2*np.pi / ( N3 * dq3 * np.cos(theta))  
+
+    dr1 = 2*np.pi / ( Ny * dq1 * np.cos(theta))
+    dr2 = 2*np.pi / ( Nx * dq2 * np.cos(theta))
+    #dr3 = 2*np.pi / ( N3 * dq3 * np.cos(theta))
+    
+    # create realspace pixel sizes
+    # hur blir det här? dr1 beror av dr3
+    dx = dr3*np.cos(theta)
+    dy = dr2
+    #dz = dr1 + dr3*np.sin(theta)
+    
+    #this is the size of the object(=FOV(ja, ptycho-FOV)), right?
+    # what the width of the diffraction pattern equals to in object plan (pixlar * pixelstorlekx/y)
+    sizeDiffObjectx =  Nx * dx
+    sizeDiffObjecty =  Ny * dy
+    
+ 
+    # calculate how long each step is in x and y OBS kan också vara minus
+    stepSizex = np.zeros((nbr_rows, nbr_cols))
+    stepSizey = np.zeros((nbr_rows,1))
+    
+    # inte tillräcklig nogrannhet i motorpos för att det ska vara nödvändigt att göra detta?
+    # bara använd den stepsize du valde till scanet? testa båda sätten!
+    for i in range(0,nbr_rows):   #gör 2 loops for diffrent nbr of scans in y and x . convert from microns to meters
+        
+        stepSizey[i] = (motorpositiony[rotation][i+1] - motorpositiony[rotation][i]) * 1E-6
+        for cols in range(0,nbr_cols):
+            # TODO: lots and less time to do it
+            stepSizex[i][:] = (motorpositionx[rotation][i+1] - motorpositionx[rotation][i]) * 1E-6
+###############################♠♠♠♠♠♠OLDOLDOLD♠♠♠     
 
 def funkar_ej():
     fig = plt.figure()
