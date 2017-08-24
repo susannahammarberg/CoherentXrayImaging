@@ -44,10 +44,10 @@ import itertools as it # used to iterate in 2 staes in a loop
 #import sys   #to collect system path ( to collect function from another directory)
 sys.path.insert(0, 'C:\Users\Sanna\Desktop\CXI\Ptychography') #to collect ePIE
 from ePIE import ePIE  
-plt.close("all")
+#plt.close("all")
 
 # start at scan nbr:
-scan_name_int = 192 #458 # 94 fly scan    # is updated in for loop
+scan_name_int = 195 #458 # 94 fly scan    # is updated in for loop
 scan_name_string = '%d' %scan_name_int   
 first_scan_nbr = scan_name_int #save this nbr for plotting
 
@@ -72,7 +72,7 @@ metadata_directory = 'D:/exp20170628_Wallentin_nanomax/exp20170628_Wallentin/JWX
 # TODO:  
 # is not used in the loop that reads in that data anymore
 # but is still used in the plotting . should be defined adter the loop that reads in the data. but is currently used before that look to define how large the pil100K data matrix should be
-nbr_rotations = 30
+nbr_rotations = 2
 
 #(rows:) in one flyscan #S
 nbr_rows = 17 # 16 för söndagsmacrot  # (including 0000)
@@ -98,33 +98,42 @@ epsilon = 2.220446049250313e-16
 
 #TODO: kontrollera att maskning är OK
 def create_mask_Merlin():
-    probe_mask = np.ones((512,512), dtype=np.int32)
-    # Find all cold? pixels (they show minus values)
-    
-    #probe_mask = sum(one_position) > -1   # finns inga på Merlin!?
-    
-    # remove too high intensity pixelson Merlin. 
-    #probe_mask[199,321] = 0 
-    probe_mask[217,301] = 0 
-    probe_mask[199,321] = 0 
-    
-    probe_mask[320,231] = 0 
-    probe_mask[461,64] = 0 
-    probe_mask[353,32] = 0 
-    probe_mask[236,44] = 0 
-    
-    probe_mask[38,280] = 0 
-    probe_mask[420,380] = 0 
+    # Alex mask:
+    data = np.load('C:\Users\Sanna\Desktop\NanoMAX062017\merlin_mask(1).npy')
 
-    # ta bort  korset på Merlin
-    probe_mask[255,:] = 0    
-    probe_mask[256,:] = 0   
-    probe_mask[:,255] = 0    
-    probe_mask[:,256] = 0    
-    return probe_mask
+#    # min mask
+#    probe_mask = np.ones((512,512), dtype=np.int32)
+#    # Find all cold? pixels (they show minus values)
+#    
+#    #probe_mask = sum(one_position) > -1   # finns inga på Merlin!?
+#    # OBS ,  jag gjorde min mask uppochned eftersom Merlin var uppochned
+#    
+#    # remove too high intensity pixelson Merlin. 
+#    #probe_mask[199,321] = 0 
+#    probe_mask[217,301] = 0 
+#    probe_mask[199,321] = 0 
+#    
+#    probe_mask[320,231] = 0 
+#    probe_mask[461,64] = 0 
+#    probe_mask[353,32] = 0 
+#    probe_mask[236,44] = 0 
+#    
+#    probe_mask[38,280] = 0 
+#    probe_mask[420,380] = 0 
+#
+#    # ta bort  korset på Merlin
+#    # korset är på pixlarna 255 256 i båda led
+#    probe_mask[255,:] = 0      
+#    probe_mask[256,:] = 0   
+#    probe_mask[:,255] = 0    
+#    probe_mask[:,256] = 0 
+    
+    return data#probe_mask#data
 
 # Choose mask: gather mask or make mask
 mask_Merlin = create_mask_Merlin()
+plt.figure()
+plt.imshow(mask_Merlin)
 
 # ev matrix to rad in Pil1M data
 #diffSet=np.zeros((nbr_positions, 1043, 981))  # Pil1M
@@ -158,7 +167,7 @@ rotation = 0
 vertical_shift = [-1,-1,0,0,0,  0,0,2,1,0,  1,1,1,0,-1,  -1,-1,-1,-1,0,  -1,-1,0,0,1,  1,-1,0,1,0,   2,0,0,1,1,  1,0,0,1,1,  1,2,2,2,4,  3,3,3,3,3,   3];
 
 # read in and save data ROIs + motorpositions. mask data
-for scan_number in it.chain(range(192, 193)):#488), range(496, 515)):
+for scan_number in it.chain(range(195, 196)):#488), range(496, 515)):
     
     # replace the scans that where rerun:     
     if (scan_number == 472):  
@@ -177,9 +186,24 @@ for scan_number in it.chain(range(192, 193)):#488), range(496, 515)):
 
         # load and store in np array
         data_Merlin =  np.array(scan.get('/entry_0000/measurement/Merlin/data' ), dtype=np.int32)
+
+        # Flip up and down
+        # flipping the diffpatterns en och en, maybe there is an easier way
+        for col in range(0, nbr_cols):
+            data_Merlin[col] = np.flipud(data_Merlin[col])
         
+
         # mask the Merlin data
-        data_Merlin = data_Merlin * mask_Merlin
+ #       data_Merlin = data_Merlin * mask_Merlin
+        
+        # remove the kors from the middle of the merlin detector images
+#        data_Merlin[:,255,:] = data_Merlin[:,254,:]
+##        #data_Merlin[:,255,:] = (data_Merlin[:,254,:] + data_Merlin[:,257,:]    )/1
+##        #np.disp((data_Merlin[:,254,:] + data_Merlin[:,257,:]    ))
+##        #data_Merlin[:,256,:] = (data_Merlin[:,254,:]  +data_Merlin[:,257,:]      )/2
+#        data_Merlin[:,256,:] = data_Merlin[:,257,:]
+#        data_Merlin[:,:,255] = data_Merlin[:,:,254]    
+#        data_Merlin[:,:,256] = data_Merlin[:,:,257]    
         
         # (gör det någon skillnad om jag gör maskningen och väljer roi på denna rad istället och skippar att 
         # spara det i en 'vanlig' matris?)
@@ -187,7 +211,10 @@ for scan_number in it.chain(range(192, 193)):#488), range(496, 515)):
 #        roi_y = vertical_shift[rotation] + 100, vertical_shift[rotation] + 300
 #        data_Merlin = data_Merlin[:, roi_y[0]:roi_y[1], 100:380] #       data_Merlin = data_Merlin[:,130:250,250:360]
 #        select roi (other scans)
-        data_Merlin = data_Merlin[:, 200: 480, 100:380]
+        #data_Merlin = data_Merlin[:, 200: 480, 100:380]
+        #data_Merlin = data_Merlin[:, 250: 430, 150:330]
+        data_Merlin = data_Merlin[:, 70: 250, 150:330]
+        # OBS OBS Need to change the roi in the mask aswell!!!!
 
         # save all images as sparse matrices in a list M
         one_row_sparse_Merlin = [sparse.lil_matrix(data_Merlin[i]) for i in xrange(nbr_cols)]
@@ -251,6 +278,9 @@ del scan, data_Merlin, one_row_sparse_Merlin, temp_list, motorpositionx_with_zer
 #del data_pil
 del dataset_motorpositionx, dataset_motorpositiony, dataset_motorposition_gonphi
 
+# need to select roi for mask aswell as i am going to send it to ePIE
+mask_Merlin = mask_Merlin[70: 250, 150:330]
+        
 fig = plt.figure()
 plt.imshow(np.log10(list_Merlin[0][9][15].toarray()), cmap = 'jet', interpolation = 'none')
 plt.colorbar()
@@ -337,8 +367,8 @@ def diff_phase_contrast(data):
 
 # Choose which detector images to analyze:
 # if sats so that it plots the right detector name       
-#detector = 0
-#rotation_analysis = 1
+#detector = 1
+#rotation_analysis = 0
 #if (detector == 0):                                               
 #
 #    #bright_field = bright_field_analysis(list_Merlin-...........[rotation_analysis])
@@ -348,8 +378,8 @@ def diff_phase_contrast(data):
 #    bright_field = bright_field_analysis(diffSet_Pil100K[rotation_analysis])
 #    dpc_x, dpc_y, pol_DPC_r, pol_DPC_phi = diff_phase_contrast(diffSet_Pil100K[rotation_analysis])
 #    analyse_detector_name_string ='Pil100K'    
-
-    
+#
+#    
 def plot_analysis():
     
     plt.figure()
@@ -450,8 +480,8 @@ sizeDiffObjecty = Ny * ypixel
    
 # hur långt motorn rör sig i x och yled: 
 # TODO: lägga in en factor *np.cos(2*theta)
-motorpositiony[rotation] = np.cos(2*theta)* motorpositiony[rotation]
-motorpositionx[rotation] = np.cos(2*theta)* motorpositionx[rotation]
+motorpositiony[rotation] = np.cos(1*theta)* motorpositiony[rotation]
+motorpositionx[rotation] = np.cos(1*theta)* motorpositionx[rotation]
 motorWidthx = ( motorpositionx[rotation].max() - motorpositionx[rotation].min() ) * 1E-6
 motorWidthy = ( motorpositiony[rotation].max() - motorpositiony[rotation].min() ) * 1E-6
 
@@ -483,7 +513,7 @@ positiony = (positiony - positiony.min() ) *1E-6
 positionx = (positionx - positionx.min() ) *1E-6
 
 #nbr of iterations
-k = 1
+k = 150
 # calculate the total number of 'grid' points
 nbr_scans = nbr_cols*nbr_rows
 # each scan is on a grid of 16 rows (16 flyscans) and 101 cols 
@@ -495,7 +525,7 @@ diffSet = np.zeros((nbr_scans,Ny, Nx))
 for row in range(0,nbr_rows):
     for col in range(0,nbr_cols):
         # compensate for intensity variation with the factor I0
-        diffSet[index] = list_Merlin[rotation][row][col].toarray() / I0[row][col] 
+        diffSet[index] = list_Merlin[rotation][row][col].toarray() #/ I0[row][col] 
         index = index + 1
         
 
@@ -509,36 +539,44 @@ plt.imshow(np.log10(sum(diffSet)), cmap = 'jet', interpolation = 'none')
 plt.colorbar()
 
 # run 2d ePIE
-objectFunc, probe, ani, sse, psi, PRTF = ePIE(k, diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx, nbr_scans)
+objectFunc, probe, ani, sse, psi, PRTF = ePIE(k, diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx, nbr_scans, mask_Merlin)
 
 #    return (objectFunc, probe)
 # run ePIE 2D. use rotation as input
 #objectFunc, probe = run_ePIE_2D(0)
-plt.figure()
-plt.imshow((abs(objectFunc)), cmap='gray', interpolation = 'none')
-plt.title('Scan %d: Object amplitude'%scan_name_int)
-plt.colorbar()
-
 plt.figure()     #, origin="lower"                         # sets the scale on axes. 
-plt.imshow( np.angle(objectFunc), cmap='jet', interpolation='none') #, cmap='gray'
+plt.imshow( np.angle(objectFunc), cmap='jet', interpolation='none', extent=[0,objectFuncNx*xpixel*1E6, 0,objectFuncNy*ypixel*1E6])
+#plt.gca().invert_yaxis() 
+plt.xlabel(' [$\mu m$]')
+plt.ylabel(' [$\mu m$]')
 plt.title('Scan %d: Object phase'%scan_name_int)
 plt.colorbar()
+plt.savefig('C:\Users\Sanna\Desktop\NanoMAX062017\Analysis\savefig\scan%d_Ophase_k%d'%(scan_name_int, k), bbox_inches='tight')
+   
+plt.figure()                                                            # horisontalt vertikalt. xpixel * size(objectfunc[xled])
+plt.imshow(abs(objectFunc), cmap='gray', interpolation='none', extent=[0,objectFuncNx*xpixel*1E6, 0, objectFuncNy*ypixel*1E6])
+plt.xlabel(' [$\mu m$]')
+plt.ylabel(' [$\mu m$]')
+plt.title('Scan %d: Object amplitude'%scan_name_int)
+plt.colorbar()
+plt.savefig('C:\Users\Sanna\Desktop\NanoMAX062017\Analysis\savefig\scan%d_Oamp_k%d'%(scan_name_int, k), bbox_inches='tight')
+
 
 plt.figure()
-plt.imshow(abs(probe), cmap='jet', interpolation='none')
+plt.imshow((abs(probe)), cmap='gray', interpolation='none', extent=[ 0,sizeDiffObjectx*1E6, 0,sizeDiffObjecty*1E6])
 plt.xlabel(' [$\mu m$]')
 plt.ylabel(' [$\mu m$]')
 plt.title('Scan %d: Probe amplitude'%scan_name_int)
 plt.colorbar()
-   # plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Pamp_k%d'%(scan_name_int, k), bbox_inches='tight')
+plt.savefig('C:\Users\Sanna\Desktop\NanoMAX062017\Analysis\savefig\scan%d_Pamp_k%d'%(scan_name_int, k), bbox_inches='tight')
 
 plt.figure()                                                            # horisontalt vertikalt
-plt.imshow(np.angle(probe), cmap='gray', interpolation='none')#, extent=[ 0,sizeDiffObjectx*1E6, 0,sizeDiffObjecty*1E6])
+plt.imshow(np.angle(probe), cmap='jet', interpolation='none', extent=[ 0,sizeDiffObjectx*1E6, 0,sizeDiffObjecty*1E6])
 plt.xlabel(' [$\mu m$]')
 plt.ylabel(' [$\mu m$]')
 plt.title('Scan %d: Probe phase'%scan_name_int)
 plt.colorbar()
- #   plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Pphase_k%d'%(scan_name_int, k), bbox_inches='tight')  
+plt.savefig('C:\Users\Sanna\Desktop\NanoMAX062017\Analysis\savefig\scan%d_Pphase_k%d'%(scan_name_int, k), bbox_inches='tight')  
     
 #    #plt.gca().invert_yaxis() 
 
