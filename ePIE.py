@@ -18,7 +18,7 @@ def ePIE( n, diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positio
     ysize = diffSet.shape[1]
     xsize = diffSet.shape[2]
   
-    # object får den nog inte heta object. 
+    
     # make sure it can hold complex numbers
     # intensitet ettor phase 0 är bra guess
     objectFunc = np.ones((objectFuncNy, objectFuncNx), dtype=np.complex64)
@@ -111,9 +111,9 @@ def ePIE( n, diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positio
 
             
 #        ims.append([im])
-        # tittar bara på sista scanet?
+        # looking at the last scan?
         sse[k] = sum(sum( (diffSet[int(nbr_scans/2)]**2 - save_G_for_sse**2 ) / 65536 ))**2  #dela innanför
-        k = k+1        
+        k += 1        
         np.disp(k)                    
        
     # End of ePIE iterations
