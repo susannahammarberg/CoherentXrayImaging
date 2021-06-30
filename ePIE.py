@@ -12,7 +12,7 @@ from numpy import fft
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-def ePIE( n, diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx, nbr_scans ): 
+def ePIE( n, diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx, Nxy ): 
 
     # size of probe and diffraction patterns
     ysize = diffSet.shape[1]
@@ -48,7 +48,7 @@ def ePIE( n, diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positio
     # Start of ePIE iterations
     while k < n:
         # Start of inner loop: (where you iterate through all probe positions R)
-        for u in range(0,nbr_scans):
+        for u in range(0,Nxy):
             
             # define xposition in matrix from motorposition            
             yposition = int(np.round(positiony[u]/ypixel))    
@@ -103,7 +103,7 @@ def ePIE( n, diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positio
             # anim
 #            im = plt.imshow(abs(objectFunc), animated=True, interpolation='none', extent=[0,6.837770297837617,0,6.825238081022181])
             ## Error estimate (sse)  Nu är alla diff mönster viktade på samma sätt. Inte så bra när de scans som är utanför provet är oviktiga/ger ingen information
-            if u == int(nbr_scans/2):
+            if u == int(Nxy/2):
                 save_G_for_sse = abs(G)
 #                sse[k] = sse[k] + sum(sum( )**2 
             # va är det här det är ju inte rätt:!:
@@ -112,19 +112,19 @@ def ePIE( n, diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positio
             
 #        ims.append([im])
         # looking at the last scan?
-        sse[k] = sum(sum( (diffSet[int(nbr_scans/2)]**2 - save_G_for_sse**2 ) / 65536 ))**2  #dela innanför
+        sse[k] = sum(sum( (diffSet[int(Nxy/2)]**2 - save_G_for_sse**2 ) / 65536 ))**2  #dela innanför
         k += 1        
-        np.disp(k)                    
+        print('iteration ', k)                    
        
     # End of ePIE iterations
     
     # calculate PRTF:
         
-    PRTF = (gprimesum/nbr_scans) / ( sum(diffSet) / nbr_scans)
+    PRTF = (gprimesum/Nxy) / ( sum(diffSet) / Nxy)
     #te = np.fft.fftfreq(PRTF)
 #    np.disp(PRTF)
     # define exit wave
-    psi = np.zeros((nbr_scans,probe.shape[0],probe.shape[1]),dtype=np.complex64)    
+    psi = np.zeros((Nxy,probe.shape[0],probe.shape[1]),dtype=np.complex64)    
     #transmis = np.zeros
     # iterate over all probe positions
 #    for lu in range(0,nbr_scans):

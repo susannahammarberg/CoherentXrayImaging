@@ -159,7 +159,7 @@ def transmission_counter():
             index = index+1
             
     return photons
-transmission = transmission_counter()
+#transmission = transmission_counter()
 
 #test_circular probe function taken from https://mail.scipy.org/pipermail/numpy-discussion/2011-January/054470.html
 # used for dark field filter and also possible for initial probe definition
@@ -181,7 +181,7 @@ def circular_filter(ySize, xSize, outer_radius, inner_radius):
 
 outer_radius = 40   #35
 inner_radius = 12     # 0 till 8 gör ingenting
-dark_field_filter = circular_filter(data.shape[1],data.shape[2],outer_radius,inner_radius)
+#dark_field_filter = circular_filter(data.shape[1],data.shape[2],outer_radius,inner_radius)
 
 def dark_field(dark_field_filter):
     index = 0# OK to use same variable name as in other places in code since it is in a function, right?
@@ -195,7 +195,7 @@ def dark_field(dark_field_filter):
             index = index+1
             
     return dark_field
-dark_field_image = dark_field(dark_field_filter)
+#dark_field_image = dark_field(dark_field_filter)
 
 def diff_phase_contrast():
     tempy = 0
@@ -236,7 +236,7 @@ def diff_phase_contrast():
                 
     return diff_phasex, diff_phasey, pol_DPC_r, pol_DPC_phi
 
-dpc_x, dpc_y, pol_DPC_r, pol_DPC_phi = diff_phase_contrast()
+#dpc_x, dpc_y, pol_DPC_r, pol_DPC_phi = diff_phase_contrast()
 
 def plot_analysis():
     
@@ -393,7 +393,7 @@ positionx = (x - x.min() ) *1E-6
 #plt.colorbar()
 
 # run ePIE for k nbr of iterations
-k = 20
+k = 3
 objectFunc, probe, ani, sse, psi, PRTF = ePIE(k, data, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx, Nxy)
 plt.show() #show animation
 #plt.figure()
@@ -483,64 +483,64 @@ def plot():
 #    
     #def plott():  
     plt.figure()     #, origin="lower"                         # sets the scale on axes. 
-    plt.imshow( np.angle(objectFunc), cmap='gray', interpolation='none', extent=[0,objectFuncNx*xpixel*1E6, 0,objectFuncNy*ypixel*1E6])
+    plt.imshow( np.angle(objectFunc), cmap='gray', interpolation='none')#, extent=[0,objectFuncNx*xpixel*1E6, 0,objectFuncNy*ypixel*1E6])
     #plt.gca().invert_yaxis() 
     plt.xlabel(' [µm]')
     plt.ylabel(' [µm]')
-    plt.title('Scan %d: Object phase'%scan_name_int)
+    plt.title('Scan %d: Object phase'%scan)
     plt.colorbar()
-    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Ophase_k%d'%(scan_name_int, k), bbox_inches='tight')
+    ##plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Ophase_k%d'%(scan_name_int, k), bbox_inches='tight')
        
     plt.figure()                                                            # horisontalt vertikalt. xpixel * size(objectfunc[xled])
-    plt.imshow(abs(objectFunc), cmap='gray', interpolation='none', extent=[0,objectFuncNx*xpixel*1E6, 0, objectFuncNy*ypixel*1E6])
+    plt.imshow(abs(objectFunc), cmap='gray', interpolation='none')#, extent=[0,objectFuncNx*xpixel*1E6, 0, objectFuncNy*ypixel*1E6])
     plt.xlabel(' [µm]')
     plt.ylabel(' [µm]')
-    plt.title('Scan %d: Object amplitude'%scan_name_int)
+    plt.title('Scan %d: Object amplitude'%scan)
     plt.colorbar()
-    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Oamp_k%d'%(scan_name_int, k), bbox_inches='tight')
+    ##plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Oamp_k%d'%(scan, k), bbox_inches='tight')
     
     plt.figure()
-    plt.imshow(abs(probe), cmap='gray', interpolation='none', extent=[0,sizeDiffObjectx*1E6, 0,sizeDiffObjecty*1E6])
+    plt.imshow(abs(probe), cmap='gray', interpolation='none')#, extent=[0,sizeDiffObjectx*1E6, 0,sizeDiffObjecty*1E6])
     plt.xlabel(' [µm]')
     plt.ylabel(' [µm]')
-    plt.title('Scan %d: Probe amplitude'%scan_name_int)
+    plt.title('Scan %d: Probe amplitude'%scan)
     plt.colorbar()
-    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Pamp_k%d'%(scan_name_int, k), bbox_inches='tight')
+    ##plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Pamp_k%d'%(scan, k), bbox_inches='tight')
     
     plt.figure()                                                            # horisontalt vertikalt
-    plt.imshow(np.angle(probe), cmap='gray', interpolation='none', extent=[ 0,sizeDiffObjectx*1E6, 0,sizeDiffObjecty*1E6])
+    plt.imshow(np.angle(probe), cmap='gray', interpolation='none')#, extent=[ 0,sizeDiffObjectx*1E6, 0,sizeDiffObjecty*1E6])
     plt.xlabel(' [µm]')
     plt.ylabel(' [µm]')
-    plt.title('Scan %d: Probe phase'%scan_name_int)
+    plt.title('Scan %d: Probe phase'%scan)
     plt.colorbar()
-    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Pphase_k%d'%(scan_name_int, k), bbox_inches='tight')  
+    ##plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Pphase_k%d'%(scan, k), bbox_inches='tight')  
     
     plt.figure()
     plt.plot(sse)
     plt.xlabel(' iterations ')
     plt.ylabel(' SSE ')
     plt.title('Scan %d: SSE looking at central position only'%scan_name_int)
-    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_SSE_k%d'%(scan_name_int, k), bbox_inches='tight')
+    ##plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_SSE_k%d'%(scan, k), bbox_inches='tight')
     
-    plot_x = np.linspace(0,diffSet.shape[2]-1,diffSet.shape[2])*xpixel*1E6
+    plot_x = np.linspace(0, data.shape[2]-1, data.shape[2])*xpixel*1E6
     plt.figure()
     plt.plot(plot_x ,abs(probe.sum(axis=0)), 'b+:', label='data')                                    
     plt.plot(plot_x, gauss(xCol, *poptCol), 'r-', label='fit')
     #plt.plot(plot_x, yFit, 'g', label='manual fit')
     plt.xlabel(' [µm]')
     plt.ylabel('Intensity')
-    plt.title('Scan %d: Probe summed over all rows. FWHM: %f µm'%(scan_name_int,FWHM_col))     #horizontal line
+    plt.title('Scan %d: Probe summed over all rows. FWHM: %f µm'%(scan,FWHM_col))     #horizontal line
     plt.legend()
-    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_probe_row_lineplot_k%d'%(scan_name_int, k), bbox_inches='tight')
+    ##plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_probe_row_lineplot_k%d'%(scan_name_int, k), bbox_inches='tight')
 
-    plot_y = np.linspace(0,diffSet.shape[1]-1,diffSet.shape[1])*ypixel*1E6
+    plot_y = np.linspace(0,data.shape[1]-1,data.shape[1])*ypixel*1E6
     plt.figure()
     plt.plot(plot_y, abs(probe.sum(axis=1)), 'b+:', label='data')  # vertical line
     plt.plot(plot_y, gauss(xRow, *poptRow),'r-', label='fit')
     plt.legend() 
     plt.xlabel(' [µm]')
     plt.title('Scan %d: Probe summed over all columns. FWHM: %f µm'%(scan_name_int,FWHM_row))
-    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_probe_col_lineplot_k%d'%(scan_name_int, k), bbox_inches='tight')
+    ##plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_probe_col_lineplot_k%d'%(scan_name_int, k), bbox_inches='tight')
 
     def normalize_0_1(array):
         array = (array - array.min()) / (array.max() - array.min())
