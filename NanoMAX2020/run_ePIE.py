@@ -334,14 +334,20 @@ dx = 50e-9
 dy = 50e-9
 
 # probe construction
-sigmay = 1# 14.1# 14.1            # initial value of gaussian height     #Scan51 2 x 2 
-sigmax = 1# 10                    # initial value of gaussian width
+sigmay = 14# 14.1# 14.1            # initial value of gaussian height     #Scan51 2 x 2 
+sigmax = 10# 10                    # initial value of gaussian width
 probe = create2Dgaussian( sigmay, sigmax, data.shape[1], data.shape[2])
 
-phase = np.pi/4 * circular_filter(data.shape[1],data.shape[2],1,0)
+#phase = np.pi/4 * circular_filter(data.shape[1],data.shape[2],40,0)
 
+phase = np.pi/4*probe
 # create complex probe
 probe = probe * np.exp(1j*phase)
+
+plt.figure()
+plt.imshow(abs(probe))
+plt.figure()
+plt.imshow(np.angle(probe))
 
 # size of one pixel in objectplane. (blir annorlunda för att Nx och Ny är olika)
 xpixel = xfactor/pixel_det
@@ -393,7 +399,7 @@ positionx = (x - x.min() ) *1E-6
 #plt.colorbar()
 
 # run ePIE for k nbr of iterations
-k = 3
+k = 1
 objectFunc, probe, ani, sse, psi, PRTF = ePIE(k, data, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positiony, positionx, Nxy)
 plt.show() #show animation
 #plt.figure()
@@ -472,18 +478,18 @@ FWHM_row = 2.35482 * poptRow[2]
 #liney = np.linspace(0,diffSet.shape[1],diffSet.shape[1]+1)
 #lineyy = diffSet.shape[1]/2 * np.ones((linex.shape))
 def plot():
-     # colormap gray or jet
-#    plt.figure()
-#    plt.imshow(np.log10(sum(diffSet)+1), cmap='gray', interpolation='none', extent=[0,diffSet.shape[1]*pixel_det*1E3, 0, diffSet.shape[2]*pixel_det*1E3] )
-#    plt.xlabel(' y [mm]')
-#    plt.ylabel(' x [mm]')
-#    plt.title('Scan %d: log10 of all diffraction patterns summed'%scan_name_int)   
-#    plt.colorbar()
-#    plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_SumdiffPatt__k%d'%(scan_name_int, k), bbox_inches='tight')
-#    
+     
+    plt.figure()
+    plt.imshow(np.log10(sum(data)+1), cmap='gray', interpolation='none')#, extent=[0,diffSet.shape[1]*pixel_det*1E3, 0, diffSet.shape[2]*pixel_det*1E3] )
+    plt.xlabel(' y [mm]')
+    plt.ylabel(' x [mm]')
+    plt.title('Scan %d: log10 of all diffraction patterns summed'%scan)   
+    plt.colorbar()
+    ###plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_SumdiffPatt__k%d'%(scan_name_int, k), bbox_inches='tight')
+    
     #def plott():  
     plt.figure()     #, origin="lower"                         # sets the scale on axes. 
-    plt.imshow( np.angle(objectFunc), cmap='gray', interpolation='none')#, extent=[0,objectFuncNx*xpixel*1E6, 0,objectFuncNy*ypixel*1E6])
+    plt.imshow( np.angle(objectFunc), cmap='jet', interpolation='none')#, extent=[0,objectFuncNx*xpixel*1E6, 0,objectFuncNy*ypixel*1E6])
     #plt.gca().invert_yaxis() 
     plt.xlabel(' [µm]')
     plt.ylabel(' [µm]')
@@ -492,7 +498,7 @@ def plot():
     ##plt.savefig('dokumentering\Jespers_scans\savefig\scan%d_Ophase_k%d'%(scan_name_int, k), bbox_inches='tight')
        
     plt.figure()                                                            # horisontalt vertikalt. xpixel * size(objectfunc[xled])
-    plt.imshow(abs(objectFunc), cmap='gray', interpolation='none')#, extent=[0,objectFuncNx*xpixel*1E6, 0, objectFuncNy*ypixel*1E6])
+    plt.imshow(np.log10(abs(objectFunc)), cmap='gray', interpolation='none')#, extent=[0,objectFuncNx*xpixel*1E6, 0, objectFuncNy*ypixel*1E6])
     plt.xlabel(' [µm]')
     plt.ylabel(' [µm]')
     plt.title('Scan %d: Object amplitude'%scan)

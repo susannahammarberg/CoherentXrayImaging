@@ -77,23 +77,23 @@ def ePIE( n, diffSet, probe, objectFuncNy, objectFuncNx, ypixel, xpixel, positio
             #update probe function
 #            if k%4==0:
 #               probe = probe + 1 *(gprime-g) * np.conj(objectIlluminated)/ (np.max(abs(objectIlluminated))**2)
-            beta = 0.9
-            probe = probe + beta *(gprime-g) * np.conj(objectIlluminated)/ (np.max(abs(objectIlluminated))**2)
+            #beta = 0.9
+            #probe = probe + beta *(gprime-g) * np.conj(objectIlluminated)/ (np.max(abs(objectIlluminated))**2)
             
             ########################            
             # Further constraints:
             ########################
             
-            # constrain object amplitude to 1
-            temp_Oamp = abs(objectFunc)
-            temp_Oamp[temp_Oamp>1] = 1
-            temp = np.angle(objectFunc)
-            objectFunc = temp_Oamp * np.exp(1j* temp)
-            
-            ##constraint object phase to negative or 0
-            temp_Ophase = np.angle(objectFunc)
-            temp_Ophase[temp_Ophase>0] = 0
-            objectFunc = abs(objectFunc) * np.exp(1j* temp_Ophase)
+#            # constrain object amplitude to 1
+#            temp_Oamp = abs(objectFunc)
+#            temp_Oamp[temp_Oamp>1] = 1
+#            temp = np.angle(objectFunc)
+#            objectFunc = temp_Oamp * np.exp(1j* temp)
+#            
+#            ##constraint object phase to negative or 0
+#            temp_Ophase = np.angle(objectFunc)
+#            temp_Ophase[temp_Ophase>0] = 0
+#            objectFunc = abs(objectFunc) * np.exp(1j* temp_Ophase)
             
             # This is for the PRTF (Absolut men du ska ju bara göra det efter att akka iteration är klara, alltså för k=n
             # Antingen gör detta eller jämför med stara G (men då skippar man ju en iteration)
